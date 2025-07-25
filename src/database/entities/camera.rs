@@ -1,8 +1,9 @@
-
 use sea_orm::entity::prelude::*;
 use serde::{Serialize, Deserialize};
+use uuid::Uuid;
+use sea_orm::prelude::DateTimeUtc;
 
-use crate::database::entities::evidence; // 👈 importante: nome deve ser `evidence`, combinando com o nome do arquivo
+use crate::database::entities::evidences;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "cameras")]
@@ -17,13 +18,13 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "evidence::Entity")]
-    Evidence,
+    #[sea_orm(has_many = "evidences::Entity")]
+    Evidences,
 }
 
-impl Related<evidence::Entity> for Entity {
+impl Related<evidences::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Evidence.def()
+        Relation::Evidences.def()
     }
 }
 

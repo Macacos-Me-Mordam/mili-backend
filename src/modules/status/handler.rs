@@ -1,5 +1,5 @@
-use axum::{Json, http::StatusCode};
+use axum::http::StatusCode;
 
-pub async fn find_status(){
+pub async fn find() -> (StatusCode, &'static str) {
     (StatusCode::OK, "Status occurrences found")
 }

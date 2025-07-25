@@ -1,5 +1,5 @@
-use axum::{Json, http::StatusCode};
+use axum::http::StatusCode;
 
-pub async fn find_camera(){
+pub async fn find() -> (StatusCode, &'static str) {
     (StatusCode::OK, "Camera found")
 }
