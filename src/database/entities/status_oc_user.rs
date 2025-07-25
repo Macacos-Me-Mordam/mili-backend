@@ -4,21 +4,22 @@ use serde::{Serialize, Deserialize};
 use super::oc_user;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "status_oc_user")] // Nome da tabela
+#[sea_orm(table_name = "status_oc_user")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
 
-    pub status: String, // Exemplo: "pendente", "resolvido"
-    pub date: DateTimeUtc, // Data em que o status foi definido
+    pub status: String, // Ex: "pendente", "em andamento", "concluído"
+    pub date: DateTimeUtc,
 
-    #[sea_orm(column_name = "oc_user_id")] // Relacionamento com ocorrência
+    // Relacionamento com ocorrência
+    #[sea_orm(column_name = "oc_user_id")]
     pub oc_user_id: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    // Pertence a uma ocorrência
+    // Cada status pertence a uma ocorrência
     #[sea_orm(
         belongs_to = "oc_user::Entity",
         from = "Column::OcUserId",
@@ -29,7 +30,6 @@ pub enum Relation {
     OcUser,
 }
 
-// Permite acessar a ocorrência de um status
 impl Related<oc_user::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::OcUser.def()

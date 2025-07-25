@@ -1,53 +1,39 @@
-use sea_orm::entity::prelude::*; // Importa tudo necessário para trabalhar com entidades
-use serde::{Serialize, Deserialize}; // Permite serializar para/desde JSON
+use sea_orm::entity::prelude::*;
+use serde::{Serialize, Deserialize};
 
-// Importa os módulos relacionados
-use super::{evidencia_foto, historic, status_oc_user};
+use super::{evidence_photo, status_oc_user};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "oc_user")] // Nome da tabela no banco
+#[sea_orm(table_name = "oc_user")] // Entidade central: ocorrência em andamento
 pub struct Model {
-    #[sea_orm(primary_key)] // Define chave primária
+    #[sea_orm(primary_key)]
     pub id: Uuid,
 
-    pub desc: String, // Descrição da ocorrência
+    pub desc: String, // Descrição do que está sendo reportado
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    // Relação 1:N com evidências (uma ocorrência tem várias evidências)
-    #[sea_orm(has_many = "evidencia_foto::Entity")]
+    // Uma ocorrência pode ter várias fotos
+    #[sea_orm(has_many = "evidence_photo::Entity")]
     EvidenciaFoto,
 
-    // Relação 1:N com históricos
-    #[sea_orm(has_many = "historic::Entity")]
-    Historic,
-
-    // Relação 1:N com status
+    // Uma ocorrência pode ter múltiplos status ao longo do tempo
     #[sea_orm(has_many = "status_oc_user::Entity")]
     StatusOcUser,
 }
 
-// Permite consultar evidências relacionadas a uma ocorrência
-impl Related<evidencia_foto::Entity> for Entity {
+// Relacionamentos inversos (joins reversos)
+impl Related<evidence_photo::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::EvidenciaFoto.def()
     }
 }
 
-// Permite consultar históricos relacionados a uma ocorrência
-impl Related<historic::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Historic.def()
-    }
-}
-
-// Permite consultar status relacionados a uma ocorrência
 impl Related<status_oc_user::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::StatusOcUser.def()
     }
 }
 
-// Comportamento padrão para o ActiveModel (usado para inserções/updates)
 impl ActiveModelBehavior for ActiveModel {}
