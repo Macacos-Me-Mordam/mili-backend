@@ -1,0 +1,7 @@
+[cli]
+# caminho onde estão suas entidades
+entity_path = "src/database/entities"
+
+[database]
+# ou use a URL diretamente:
+url = { env = "DATABASE_URL" }

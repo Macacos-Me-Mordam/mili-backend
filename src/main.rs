@@ -12,12 +12,21 @@ use crate::config::database::connect;
 use crate::config::app_state::AppState;
 use crate::modules::users::routes::user_routes;
 
+// ✅ importações para migrations
+use migration::{Migrator, MigratorTrait}; // <-- aqui está seu migrator
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
 
     // Conexão com o banco
     let db = connect().await;
+
+    // ✅ Executa as migrations antes de subir o servidor
+    if let Err(err) = Migrator::up(&db, None).await {
+        eprintln!("Erro ao rodar migrations: {:?}", err);
+        std::process::exit(1);
+    }
 
     // Pega a chave pública do Keycloak do .env
     let keycloak_public_key = Arc::new(
@@ -26,14 +35,12 @@ async fn main() {
 
     let app_state = AppState { db, keycloak_public_key };
 
-    // Cria as rotas e injeta o estado
     let app = Router::new()
         .nest("/user", user_routes())
         .with_state(app_state);
 
-    // Define a porta a partir do .env, com fallback
     let port = env::var("PORT")
-        .unwrap_or_else(|_| "3000".to_string())
+        .unwrap_or_else(|_| "3020".to_string())
         .parse::<u16>()
         .expect("PORT must be a valid u16 number");
 
@@ -41,7 +48,6 @@ async fn main() {
 
     println!("🚀 Server running on http://{}", addr);
 
-    // Inicia o servidor
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
