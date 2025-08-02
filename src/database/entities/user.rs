@@ -10,7 +10,6 @@ pub struct Model {
 
     pub name: String,
     pub email: String,
-    pub password: String,
     pub role: String,
     pub created_at: DateTimeUtc,
 }
