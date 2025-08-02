@@ -1,7 +1,6 @@
 use super::config::KeycloakAdminConfig;
 use super::dto::{AdminTokenResponse, KeycloakUserRepresentation, NewKeycloakUser};
 use reqwest::Client;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct KeycloakAdminClient {

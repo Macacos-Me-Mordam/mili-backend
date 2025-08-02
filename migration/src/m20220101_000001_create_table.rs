@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Users::Name).string().not_null())
                     .col(ColumnDef::new(Users::Email).string().not_null())
-                    .col(ColumnDef::new(Users::Password).string().not_null())
+                    //.col(ColumnDef::new(Users::Password).string().not_null())
                     .col(ColumnDef::new(Users::Role).string().not_null())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
                     .to_owned(),
@@ -39,7 +39,6 @@ enum Users {
     Id,
     Name,
     Email,
-    Password,
     Role,
     CreatedAt,
 }

@@ -1,6 +1,7 @@
 mod modules;
 mod config;
 mod database;
+mod auth;
 
 use axum::Router;
 use dotenvy::dotenv;
@@ -22,7 +23,7 @@ async fn main() {
 
     // Pega a chave pública do Keycloak do .env
     let keycloak_public_key = Arc::new(
-        env::var("KEYCLOAK_PUBsLIC_KEY").expect("Missing KEYCLOAK_PUBLIC_KEY"),
+        env::var("KEYCLOAK_PUBLIC_KEY").expect("Missing KEYCLOAK_PUBLIC_KEY"),
     );
 
     // Carrega a config do admin e cria o cliente
@@ -31,7 +32,7 @@ async fn main() {
 
     // Adiciona o keycloak_client ao estado da aplicação
     let app_state = AppState {
-        db_conn,
+        db: db_conn,
         keycloak_public_key,
         keycloak_client,
     };
