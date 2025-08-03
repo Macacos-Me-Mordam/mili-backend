@@ -91,7 +91,7 @@ impl KeycloakAdminClient {
             .bearer_auth(admin_token)
             .send()
             .await?
-            .json::<KeycloakUserRepresentation>() /
+            .json::<KeycloakUserRepresentation>()
             .await?;
 
         Ok(created_user)

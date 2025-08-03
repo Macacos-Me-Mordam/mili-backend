@@ -1,5 +1,6 @@
 mod config;
 mod modules;
+mod database;
 
 use axum::Router;
 use dotenvy::dotenv;
@@ -47,7 +48,7 @@ async fn main() {
         .with_state(app_state);
 
     let port = env::var("PORT")
-        .unwrap_or_else(|_| "8000".to_string())
+        .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .expect("PORT must be a valid u16");
 
