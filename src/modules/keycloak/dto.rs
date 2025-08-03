@@ -31,7 +31,5 @@ pub struct NewKeycloakUser<'a> {
 #[derive(Deserialize, Debug)]
 pub struct KeycloakUserRepresentation {
     pub id: String,
-    pub username: String,
-    pub email: String,
 }
 

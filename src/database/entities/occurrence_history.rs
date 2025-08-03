@@ -8,10 +8,9 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
 
-    pub desc: String, // Copiado de oc_user.desc
-    pub finalized_at: DateTimeUtc, // Quando foi concluída
+    pub desc: String,
+    pub finalized_at: DateTimeUtc,
 
-    // Outros campos relevantes da ocorrência podem ser adicionados aqui
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
