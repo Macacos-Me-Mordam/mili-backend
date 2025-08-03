@@ -16,3 +16,15 @@ pub struct UserResponseDto {
     pub role: String,
     pub created_at: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginUserDto {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginResponseDto {
+    pub access_token: String,
+    pub refresh_token: String,
+}

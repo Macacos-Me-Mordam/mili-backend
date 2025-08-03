@@ -5,7 +5,7 @@ use chrono::Utc;
 use crate::database::entities::user;
 use crate::modules::keycloak::client::KeycloakAdminClient;
 use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser};
-use super::dto::{CreateUserDto, UserResponseDto};
+use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto};
 
 pub struct UserService<'a> {
     db: &'a DatabaseConnection,
@@ -14,6 +14,7 @@ pub struct UserService<'a> {
 
 impl<'a> UserService<'a> {
     pub fn new(db: &'a DatabaseConnection, keycloak_client: &'a KeycloakAdminClient) -> Self {
+        println!("🔧 Inicializando UserService");
         Self { db, keycloak_client }
     }
 
@@ -21,68 +22,132 @@ impl<'a> UserService<'a> {
         &self,
         user_data: CreateUserDto,
     ) -> Result<user::Model, String> {
+        println!("⚙️  [UserService::create_user] email: {}", user_data.email);
+
+        // 1. token admin
         let admin_token = self.keycloak_client
             .get_admin_token()
             .await
-            .map_err(|e| format!("Falha ao obter token de admin: {}", e))?;
+            .map_err(|e| {
+                let msg = format!("Falha ao obter token de admin: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+        println!("✅ [create_user] token admin obtido");
 
-        if self.keycloak_client.find_user_by_email(&admin_token, &user_data.email).await
-            .map_err(|e| format!("Erro ao buscar usuário: {}", e))?
-            .is_some() {
+        // 2. verifica existing
+        let existing = self.keycloak_client
+            .find_user_by_email(&admin_token, &user_data.email)
+            .await
+            .map_err(|e| {
+                let msg = format!("Erro ao buscar usuário: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+        println!("🔍 [create_user] usuário existe? {}", existing.is_some());
+        if existing.is_some() {
+            println!("⚠️  [create_user] abortando: já existe");
             return Err("Usuário com este email já existe.".to_string());
         }
-        
-        // Sanitiza o nome do usuário para criar um username válido
+
+        // 3. sanitização
         let sanitized_username: String = user_data.name
             .to_lowercase()
             .chars()
             .filter(|c| c.is_alphanumeric() || *c == '_')
             .collect();
+        println!("📝 [create_user] username sanitizado: {}", sanitized_username);
 
+        // 4. payload KC
         let credentials = vec![KeycloakUserCredential {
-            r#type: "password",
+            cred_type: "password",
             value: &user_data.password,
             temporary: false,
         }];
-
         let new_keycloak_user = NewKeycloakUser {
-            username: &sanitized_username, // Usa o nome sanitizado
+            username: &sanitized_username,
             email: &user_data.email,
             enabled: true,
+            email_verified: true,
             credentials,
+            required_actions: vec![],
         };
+        println!("📦 [create_user] NewKeycloakUser: {:?}", new_keycloak_user);
 
+        // 5. cria no KC
         let created_user = self.keycloak_client
             .create_user(&admin_token, &new_keycloak_user)
             .await
-            .map_err(|e| format!("Erro na requisição para criar usuário: {}", e))?;
+            .map_err(|e| {
+                let msg = format!("Erro ao criar usuário no Keycloak: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+        println!("🎉 [create_user] criado KC id: {}", created_user.id);
 
+        // 6. insere DB
         let now = Utc::now();
-
         let new_user_db = user::ActiveModel {
-            id: Set(Uuid::parse_str(&created_user.id).map_err(|_| "ID inválido do Keycloak".to_string())?),
-            name: Set(user_data.name), // Salva o nome original no banco
+            id: Set(Uuid::parse_str(&created_user.id).map_err(|e| {
+                let msg = format!("ID inválido: {} ({})", created_user.id, e);
+                println!("❌ {}", msg);
+                msg
+            })?),
+            name: Set(user_data.name),
             email: Set(user_data.email),
             role: Set(user_data.role),
             created_at: Set(now.into()),
             updated_at: Set(now.into()),
         };
+        println!("💾 [create_user] inserindo no DB local...");
+        let inserted = new_user_db.insert(self.db).await
+            .map_err(|e| {
+                let msg = format!("Falha ao salvar no banco local: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+        println!("✅ [create_user] salvo no DB local: {:?}", inserted);
 
-        new_user_db
-            .insert(self.db)
-            .await
-            .map_err(|e| format!("Falha ao salvar usuário no banco de dados local: {}", e))
+        Ok(inserted)
     }
 
     pub async fn get_all_users(&self) -> Result<Vec<UserResponseDto>, DbErr> {
+        println!("⚙️  [UserService::get_all_users] buscando todos usuários");
         let users = user::Entity::find().all(self.db).await?;
+        println!("👥 [get_all_users] {} usuários encontrados", users.len());
+        Ok(users
+            .into_iter()
+            .map(|u| UserResponseDto {
+                id: u.id.to_string(),
+                name: u.name,
+                email: u.email,
+                role: u.role,
+                created_at: u.created_at.to_string(),
+            })
+            .collect())
+    }
 
-        Ok(users.into_iter().map(|u| UserResponseDto {
-            id: u.id.to_string(),
-            name: u.name,
-            email: u.email,
-            role: u.role,
-            created_at: u.created_at.to_string(),
-        }).collect())
+    pub async fn login_user(
+        &self,
+        login_data: LoginUserDto,
+    ) -> Result<String, String> {
+        println!("⚙️  [UserService::login_user] email: {}", login_data.email);
+
+        let token_response = self
+            .keycloak_client
+            .login_user(&login_data.email, &login_data.password)
+            .await
+            .map_err(|e| {
+                let msg = format!("Falha na autenticação: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+
+        println!(
+            "✅ [login_user] access_token recebido ({} chars)",
+            token_response.access_token.len()
+        );
+
+        Ok("Login successful".to_string())
     }
 }

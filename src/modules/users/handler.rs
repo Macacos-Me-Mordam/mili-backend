@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 
-use super::dto::{CreateUserDto, UserResponseDto};
+use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto};
 use super::service::UserService;
 
 use crate::config::app_state::AppState;
@@ -40,4 +40,19 @@ pub async fn list_users_handler(
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     Ok(Json(users))
+}
+
+/// POST /users/login
+pub async fn login_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginUserDto>,
+) -> Result<Json<String>, (StatusCode, String)> {
+    let user_service = UserService::new(&state.db, &state.keycloak_client);
+
+    let msg = user_service
+        .login_user(payload)
+        .await
+        .map_err(|err| (StatusCode::UNAUTHORIZED, err))?;
+
+    Ok(Json(msg))
 }

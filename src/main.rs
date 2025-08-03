@@ -1,10 +1,16 @@
+// src/main.rs
+
 mod config;
 mod modules;
 mod database;
+mod auth;
 
-use axum::Router;
+use axum::{
+    Router, 
+    middleware,
+};
 use dotenvy::dotenv;
-use migration::{Migrator, MigratorTrait}; 
+use migration::{Migrator, MigratorTrait};
 use sea_orm::Database;
 use std::env;
 use std::net::SocketAddr;
@@ -13,7 +19,8 @@ use std::sync::Arc;
 use crate::config::app_state::AppState;
 use crate::modules::keycloak::client::KeycloakAdminClient;
 use crate::modules::keycloak::config::KeycloakAdminConfig;
-use crate::modules::users::routes::user_routes;
+use crate::modules::users::routes::{private_user_routes, public_user_routes};
+use crate::auth::middleware::auth_middleware;
 
 #[tokio::main]
 async fn main() {
@@ -43,8 +50,14 @@ async fn main() {
         keycloak_client,
     };
 
+    let private_routes = private_user_routes()
+        .route_layer(middleware::from_fn_with_state(
+            app_state.clone(), 
+            auth_middleware
+        ));
+
     let app = Router::new()
-        .nest("/users", user_routes())
+        .nest("/users", public_user_routes().merge(private_routes))
         .with_state(app_state);
 
     let port = env::var("PORT")
@@ -56,6 +69,7 @@ async fn main() {
     tracing::info!("🚀 Server listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
