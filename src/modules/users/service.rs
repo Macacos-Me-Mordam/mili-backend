@@ -4,8 +4,8 @@ use chrono::Utc;
 
 use crate::database::entities::user;
 use crate::modules::keycloak::client::KeycloakAdminClient;
-use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser};
-use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto};
+use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser };
+use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto, RefreshTokenDto};
 
 pub struct UserService<'a> {
     db: &'a DatabaseConnection,
@@ -153,4 +153,31 @@ impl<'a> UserService<'a> {
         refresh_token: token_response.refresh_token,
     })
 }
+
+pub async fn refresh_access_token(
+        &self,
+        refresh_token_data: RefreshTokenDto,
+    ) -> Result<LoginResponseDto, String> {
+        println!("⚙️  [UserService::refresh_access_token] refrescando token");
+
+        let token_response = self
+            .keycloak_client
+            .refresh_token(&refresh_token_data.refresh_token)
+            .await
+            .map_err(|e| {
+                let msg = format!("Falha ao refrescar o token: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
+
+        println!(
+            "✅ [refresh_access_token] access_token recebido ({} chars)",
+            token_response.access_token.len()
+        );
+
+        Ok(LoginResponseDto {
+            access_token: token_response.access_token,
+            refresh_token: token_response.refresh_token,
+        })
+    }
 }

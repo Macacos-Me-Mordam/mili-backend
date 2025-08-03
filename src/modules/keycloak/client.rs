@@ -170,4 +170,38 @@ impl KeycloakAdminClient {
         );
         Ok(token_data)
     }
+
+    pub async fn refresh_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<UserTokenResponse, KeycloakAdminError> {
+        println!("⚙️  [refresh_token] solicitando novo access token");
+        let token_url = format!(
+            "{}/realms/{}/protocol/openid-connect/token",
+            self.config.admin_url, self.config.realm
+        );
+        let params = [
+            ("client_id", self.config.client_id.clone()),
+            ("client_secret", self.config.client_secret.clone()),
+            ("grant_type", "refresh_token".to_string()),
+            ("refresh_token", refresh_token.to_string()),
+        ];
+        let res = self.http_client.post(&token_url).form(&params).send().await?;
+        println!("🔁 [refresh_token] status: {}", res.status());
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let message = res.text().await.unwrap_or_else(|_| "<no body>".into());
+            println!("❌ [refresh_token] KeycloakError: {} — {}", status, message);
+            return Err(KeycloakAdminError::Keycloak { status, message });
+        }
+
+        let token_data = res.json::<UserTokenResponse>().await?;
+        println!(
+            "✅ [refresh_token] novos tokens recebidos (access: {} chars, refresh: {} chars)",
+            token_data.access_token.len(),
+            token_data.refresh_token.len()
+        );
+        Ok(token_data)
+    }
 }

@@ -28,3 +28,8 @@ pub struct LoginResponseDto {
     pub access_token: String,
     pub refresh_token: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefreshTokenDto {
+    pub refresh_token: String,
+}
