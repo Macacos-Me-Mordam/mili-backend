@@ -1,7 +1,11 @@
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::{Statement, ConnectionTrait};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
+
+// UUID Fixo para a nossa câmera de teste.
+const TEST_CAMERA_UUID: &str = "c1a7e5e3-4b1d-4b1d-a162-466a3e2a0e2a";
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -37,7 +41,19 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela WebsiteOccurrences (Ocorrências do Site) ---
+        // --- INSERINDO UMA CÂMERA DE TESTE ---
+        let insert_test_camera_stmt = Statement::from_string(
+            manager.get_database_backend(),
+            format!(
+                "INSERT INTO {} (id, name, region, status, created_at) VALUES ('{}', 'Câmera de Teste 01', 'Corredor A', 'ativa', NOW()) ON CONFLICT (id) DO NOTHING;",
+                Cameras::Table.to_string(),
+                TEST_CAMERA_UUID
+            )
+        );
+        manager.get_connection().execute(insert_test_camera_stmt).await?;
+
+
+        // --- Tabela WebsiteOccurrences ---
         manager
             .create_table(
                 Table::create()
@@ -49,7 +65,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela AppOccurrences (Ocorrências do App) ---
+        // --- Tabela AppOccurrences ---
         manager
             .create_table(
                 Table::create()
@@ -61,7 +77,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
             
-        // --- Tabela OccurrenceHistory (Histórico de Ocorrências) ---
+        // --- Tabela OccurrenceHistory (com coluna 'status') ---
         manager
             .create_table(
                 Table::create()
@@ -69,12 +85,13 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(OccurrenceHistory::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(OccurrenceHistory::Desc).string().not_null())
+                    .col(ColumnDef::new(OccurrenceHistory::Status).string().not_null()) // <- Adicionado
                     .col(ColumnDef::new(OccurrenceHistory::FinalizedAt).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
             .await?;
 
-        // --- Tabela CameraEvidences (Evidências da Câmera) ---
+        // --- Tabela CameraEvidences ---
         manager
             .create_table(
                 Table::create()
@@ -103,7 +120,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela WebsiteOccurrenceStatuses (Status das Ocorrências do Site) ---
+        // O resto das tabelas continua igual...
         manager
             .create_table(
                 Table::create()
@@ -124,7 +141,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela AppOccurrencePhotos (Fotos das Ocorrências do App) ---
         manager
             .create_table(
                 Table::create()
@@ -144,7 +160,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela AppOccurrenceStatuses (Status das Ocorrências do App) ---
         manager
             .create_table(
                 Table::create()
@@ -182,83 +197,29 @@ impl MigrationTrait for Migration {
     }
 }
 
-// --- Definições de Identificadores para cada Tabela ---
+#[derive(Iden)]
+enum Users { Table, Id, Name, Email, Role, CreatedAt, UpdatedAt }
 
 #[derive(Iden)]
-enum Users {
-    Table,
-    Id,
-    Name,
-    Email,
-    Role,
-    CreatedAt,
-    UpdatedAt,
-}
+enum Cameras { Table, Id, Name, Region, Status, CreatedAt }
 
 #[derive(Iden)]
-enum Cameras {
-    Table,
-    Id,
-    Name,
-    Region,
-    Status,
-    CreatedAt,
-}
+enum WebsiteOccurrences { Table, Id, Description }
 
 #[derive(Iden)]
-enum WebsiteOccurrences {
-    Table,
-    Id,
-    Description,
-}
+enum WebsiteOccurrenceStatuses { Table, Id, Status, Date, OccurrenceId }
 
 #[derive(Iden)]
-enum WebsiteOccurrenceStatuses {
-    Table,
-    Id,
-    Status,
-    Date,
-    OccurrenceId,
-}
+enum CameraEvidences { Table, Id, FilePath, CreatedAt, CameraId, OccurrenceId }
 
 #[derive(Iden)]
-enum CameraEvidences {
-    Table,
-    Id,
-    FilePath,
-    CreatedAt,
-    CameraId,
-    OccurrenceId,
-}
+enum AppOccurrences { Table, Id, Desc }
 
 #[derive(Iden)]
-enum AppOccurrences {
-    Table,
-    Id,
-    Desc,
-}
+enum AppOccurrenceStatuses { Table, Id, Status, Date, AppOccurrenceId }
 
 #[derive(Iden)]
-enum AppOccurrenceStatuses {
-    Table,
-    Id,
-    Status,
-    Date,
-    AppOccurrenceId,
-}
+enum AppOccurrencePhotos { Table, Id, ImageUrl, AppOccurrenceId }
 
 #[derive(Iden)]
-enum AppOccurrencePhotos {
-    Table,
-    Id,
-    ImageUrl,
-    AppOccurrenceId,
-}
-
-#[derive(Iden)]
-enum OccurrenceHistory {
-    Table,
-    Id,
-    Desc,
-    FinalizedAt,
-}
+enum OccurrenceHistory { Table, Id, Desc, Status, FinalizedAt } // <- Adicionado Status

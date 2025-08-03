@@ -18,7 +18,7 @@ impl<'a> UserService<'a> {
         Self { db, keycloak_client }
     }
 
-    pub async fn create_user(
+pub async fn create_user(
         &self,
         user_data: CreateUserDto,
     ) -> Result<user::Model, String> {
@@ -50,22 +50,16 @@ impl<'a> UserService<'a> {
             return Err("Usuário com este email já existe.".to_string());
         }
 
-        // 3. sanitização
-        let sanitized_username: String = user_data.name
-            .to_lowercase()
-            .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '_')
-            .collect();
-        println!("📝 [create_user] username sanitizado: {}", sanitized_username);
-
-        // 4. payload KC
+        // 3. payload KC
         let credentials = vec![KeycloakUserCredential {
             cred_type: "password",
             value: &user_data.password,
             temporary: false,
         }];
+        
+        // Garantindo que o username seja o próprio email para consistência
         let new_keycloak_user = NewKeycloakUser {
-            username: &sanitized_username,
+            username: &user_data.email, // <- Usando email como username
             email: &user_data.email,
             enabled: true,
             email_verified: true,
@@ -74,7 +68,7 @@ impl<'a> UserService<'a> {
         };
         println!("📦 [create_user] NewKeycloakUser: {:?}", new_keycloak_user);
 
-        // 5. cria no KC
+        // 4. cria no KC
         let created_user = self.keycloak_client
             .create_user(&admin_token, &new_keycloak_user)
             .await
@@ -85,7 +79,7 @@ impl<'a> UserService<'a> {
             })?;
         println!("🎉 [create_user] criado KC id: {}", created_user.id);
 
-        // 6. insere DB
+        // 5. insere DB
         let now = Utc::now();
         let new_user_db = user::ActiveModel {
             id: Set(Uuid::parse_str(&created_user.id).map_err(|e| {

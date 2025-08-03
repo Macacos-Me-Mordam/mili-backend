@@ -10,7 +10,8 @@ use crate::database::entities::camera_evidences;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub location: String,
+    pub name: String, 
+    pub region: String, 
     pub status: String,
     pub created_at: DateTimeUtc,
 }
