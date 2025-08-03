@@ -128,26 +128,29 @@ impl<'a> UserService<'a> {
     }
 
     pub async fn login_user(
-        &self,
-        login_data: LoginUserDto,
-    ) -> Result<String, String> {
-        println!("⚙️  [UserService::login_user] email: {}", login_data.email);
+    &self,
+    login_data: LoginUserDto,
+) -> Result<LoginResponseDto, String> {
+    println!("⚙️  [UserService::login_user] email: {}", login_data.email);
 
-        let token_response = self
-            .keycloak_client
-            .login_user(&login_data.email, &login_data.password)
-            .await
-            .map_err(|e| {
-                let msg = format!("Falha na autenticação: {}", e);
-                println!("❌ {}", msg);
-                msg
-            })?;
+    let token_response = self
+        .keycloak_client
+        .login_user(&login_data.email, &login_data.password)
+        .await
+        .map_err(|e| {
+            let msg = format!("Falha na autenticação: {}", e);
+            println!("❌ {}", msg);
+            msg
+        })?;
 
-        println!(
-            "✅ [login_user] access_token recebido ({} chars)",
-            token_response.access_token.len()
-        );
+    println!(
+        "✅ [login_user] access_token recebido ({} chars)",
+        token_response.access_token.len()
+    );
 
-        Ok("Login successful".to_string())
-    }
+    Ok(LoginResponseDto {
+        access_token: token_response.access_token,
+        refresh_token: token_response.refresh_token,
+    })
+}
 }
