@@ -6,6 +6,7 @@ pub struct Migration;
 
 // UUID Fixo para a nossa câmera de teste.
 const TEST_CAMERA_UUID: &str = "c1a7e5e3-4b1d-4b1d-a162-466a3e2a0e2a";
+const DEFAULT_WINDOW_MINUTES: &str = "5";
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -180,8 +181,32 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppSettings::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(AppSettings::Key).string().not_null().primary_key())
+                    .col(ColumnDef::new(AppSettings::Value).string().not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        // --- INSERINDO O VALOR PADRÃO PARA A JANELA DE TEMPO ---
+        let insert_default_setting_stmt = Statement::from_string(
+            manager.get_database_backend(),
+            format!(
+                "INSERT INTO {} (\"key\", \"value\") VALUES ('{}', '{}') ON CONFLICT (\"key\") DO NOTHING;",
+                AppSettings::Table.to_string(),
+                "OCCURRENCE_GROUPING_WINDOW_MINUTES",
+                DEFAULT_WINDOW_MINUTES
+            )
+        );
+        manager.get_connection().execute(insert_default_setting_stmt).await?;
+
         Ok(())
     }
+    
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager.drop_table(Table::drop().table(AppOccurrencePhotos::Table).to_owned()).await?;
@@ -193,6 +218,7 @@ impl MigrationTrait for Migration {
         manager.drop_table(Table::drop().table(WebsiteOccurrences::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(Cameras::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(Users::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(AppSettings::Table).to_owned()).await?; // Drop da nova tabela
         Ok(())
     }
 }
@@ -222,4 +248,11 @@ enum AppOccurrenceStatuses { Table, Id, Status, Date, AppOccurrenceId }
 enum AppOccurrencePhotos { Table, Id, ImageUrl, AppOccurrenceId }
 
 #[derive(Iden)]
-enum OccurrenceHistory { Table, Id, Desc, Status, FinalizedAt } // <- Adicionado Status
+enum OccurrenceHistory { Table, Id, Desc, Status, FinalizedAt }
+
+#[derive(Iden)]
+enum AppSettings {
+    Table,
+    Key,
+    Value,
+}

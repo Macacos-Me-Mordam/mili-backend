@@ -7,3 +7,4 @@ pub mod app_occurrences;
 pub mod occurrence_history;
 pub mod app_occurrence_statuses;
 pub mod website_occurrence_statuses;
+pub mod app_settings;
