@@ -1,8 +1,8 @@
-use crate::database::entities::user;
 use sea_orm::*;
 use uuid::Uuid;
 use chrono::Utc;
 
+use crate::database::entities::user;
 use crate::modules::keycloak::client::KeycloakAdminClient;
 use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser};
 use super::dto::{CreateUserDto, UserResponseDto};
@@ -16,7 +16,7 @@ impl<'a> UserService<'a> {
     pub fn new(db: &'a DatabaseConnection, keycloak_client: &'a KeycloakAdminClient) -> Self {
         Self { db, keycloak_client }
     }
-    
+
     pub async fn create_user(
         &self,
         user_data: CreateUserDto,
@@ -37,7 +37,7 @@ impl<'a> UserService<'a> {
             value: &user_data.password,
             temporary: false,
         }];
-        
+
         let new_keycloak_user = NewKeycloakUser {
             username: &user_data.email,
             email: &user_data.email,
@@ -50,12 +50,17 @@ impl<'a> UserService<'a> {
             .await
             .map_err(|e| format!("Erro na requisição para criar usuário: {}", e))?;
 
+        // AQUI ESTÁ A CORREÇÃO: Declarar a variável 'now'
+        let now = Utc::now();
+
         let new_user_db = user::ActiveModel {
             id: Set(Uuid::parse_str(&created_user.id).map_err(|_| "ID inválido do Keycloak".to_string())?),
             name: Set(user_data.name),
             email: Set(user_data.email),
             role: Set(user_data.role),
-            created_at: Set(Utc::now().into()),
+            // Usar a variável 'now' aqui
+            created_at: Set(now.into()),
+            updated_at: Set(now.into()),
         };
 
         new_user_db
