@@ -31,6 +31,13 @@ impl<'a> UserService<'a> {
             .is_some() {
             return Err("Usuário com este email já existe.".to_string());
         }
+        
+        // Sanitiza o nome do usuário para criar um username válido
+        let sanitized_username: String = user_data.name
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
 
         let credentials = vec![KeycloakUserCredential {
             r#type: "password",
@@ -39,7 +46,7 @@ impl<'a> UserService<'a> {
         }];
 
         let new_keycloak_user = NewKeycloakUser {
-            username: &user_data.email,
+            username: &sanitized_username, // Usa o nome sanitizado
             email: &user_data.email,
             enabled: true,
             credentials,
@@ -50,15 +57,13 @@ impl<'a> UserService<'a> {
             .await
             .map_err(|e| format!("Erro na requisição para criar usuário: {}", e))?;
 
-        // AQUI ESTÁ A CORREÇÃO: Declarar a variável 'now'
         let now = Utc::now();
 
         let new_user_db = user::ActiveModel {
             id: Set(Uuid::parse_str(&created_user.id).map_err(|_| "ID inválido do Keycloak".to_string())?),
-            name: Set(user_data.name),
+            name: Set(user_data.name), // Salva o nome original no banco
             email: Set(user_data.email),
             role: Set(user_data.role),
-            // Usar a variável 'now' aqui
             created_at: Set(now.into()),
             updated_at: Set(now.into()),
         };
