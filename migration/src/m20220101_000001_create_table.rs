@@ -1,13 +1,17 @@
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::{Statement, ConnectionTrait};
 
-/// Nome da migration (usado automaticamente pelo SeaORM)
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
+// UUID Fixo para a nossa câmera de teste.
+const TEST_CAMERA_UUID: &str = "c1a7e5e3-4b1d-4b1d-a162-466a3e2a0e2a";
+const DEFAULT_WINDOW_MINUTES: &str = "5";
+
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    /// Esta função cria a tabela `users`
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // --- Tabela Users ---
         manager
             .create_table(
                 Table::create()
@@ -15,32 +19,240 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Users::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Users::Name).string().not_null())
-                    .col(ColumnDef::new(Users::Email).string().not_null())
-                    //.col(ColumnDef::new(Users::Password).string().not_null())
+                    .col(ColumnDef::new(Users::Email).string().not_null().unique_key())
                     .col(ColumnDef::new(Users::Role).string().not_null())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
-            .await
-    }
+            .await?;
 
-    /// Esta função apaga a tabela `users`
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // --- Tabela Cameras ---
         manager
-            .drop_table(Table::drop().table(Users::Table).to_owned())
-            .await
+            .create_table(
+                Table::create()
+                    .table(Cameras::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(Cameras::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Cameras::Name).string().not_null())
+                    .col(ColumnDef::new(Cameras::Region).string().not_null())
+                    .col(ColumnDef::new(Cameras::Status).string().not_null())
+                    .col(ColumnDef::new(Cameras::CreatedAt).timestamp_with_time_zone().not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        // --- INSERINDO UMA CÂMERA DE TESTE ---
+        let insert_test_camera_stmt = Statement::from_string(
+            manager.get_database_backend(),
+            format!(
+                "INSERT INTO {} (id, name, region, status, created_at) VALUES ('{}', 'Câmera de Teste 01', 'Corredor A', 'ativa', NOW()) ON CONFLICT (id) DO NOTHING;",
+                Cameras::Table.to_string(),
+                TEST_CAMERA_UUID
+            )
+        );
+        manager.get_connection().execute(insert_test_camera_stmt).await?;
+
+
+        // --- Tabela WebsiteOccurrences ---
+        manager
+            .create_table(
+                Table::create()
+                    .table(WebsiteOccurrences::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(WebsiteOccurrences::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(WebsiteOccurrences::Description).string().not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        // --- Tabela AppOccurrences ---
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppOccurrences::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(AppOccurrences::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(AppOccurrences::Desc).string().not_null())
+                    .to_owned(),
+            )
+            .await?;
+            
+        // --- Tabela OccurrenceHistory (com coluna 'status') ---
+        manager
+            .create_table(
+                Table::create()
+                    .table(OccurrenceHistory::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(OccurrenceHistory::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(OccurrenceHistory::Desc).string().not_null())
+                    .col(ColumnDef::new(OccurrenceHistory::Status).string().not_null()) // <- Adicionado
+                    .col(ColumnDef::new(OccurrenceHistory::FinalizedAt).timestamp_with_time_zone().not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        // --- Tabela CameraEvidences ---
+        manager
+            .create_table(
+                Table::create()
+                    .table(CameraEvidences::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(CameraEvidences::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(CameraEvidences::FilePath).string().not_null())
+                    .col(ColumnDef::new(CameraEvidences::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(CameraEvidences::CameraId).uuid().not_null())
+                    .col(ColumnDef::new(CameraEvidences::OccurrenceId).uuid().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_evidence_camera")
+                            .from(CameraEvidences::Table, CameraEvidences::CameraId)
+                            .to(Cameras::Table, Cameras::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_evidence_occurrence")
+                            .from(CameraEvidences::Table, CameraEvidences::OccurrenceId)
+                            .to(WebsiteOccurrences::Table, WebsiteOccurrences::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // O resto das tabelas continua igual...
+        manager
+            .create_table(
+                Table::create()
+                    .table(WebsiteOccurrenceStatuses::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(WebsiteOccurrenceStatuses::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(WebsiteOccurrenceStatuses::Status).string().not_null())
+                    .col(ColumnDef::new(WebsiteOccurrenceStatuses::Date).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(WebsiteOccurrenceStatuses::OccurrenceId).uuid().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_status_website_occurrence")
+                            .from(WebsiteOccurrenceStatuses::Table, WebsiteOccurrenceStatuses::OccurrenceId)
+                            .to(WebsiteOccurrences::Table, WebsiteOccurrences::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppOccurrencePhotos::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(AppOccurrencePhotos::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(AppOccurrencePhotos::ImageUrl).string().not_null())
+                    .col(ColumnDef::new(AppOccurrencePhotos::AppOccurrenceId).uuid().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_photo_app_occurrence")
+                            .from(AppOccurrencePhotos::Table, AppOccurrencePhotos::AppOccurrenceId)
+                            .to(AppOccurrences::Table, AppOccurrences::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppOccurrenceStatuses::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(AppOccurrenceStatuses::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(AppOccurrenceStatuses::Status).string().not_null())
+                    .col(ColumnDef::new(AppOccurrenceStatuses::Date).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(AppOccurrenceStatuses::AppOccurrenceId).uuid().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_status_app_occurrence")
+                            .from(AppOccurrenceStatuses::Table, AppOccurrenceStatuses::AppOccurrenceId)
+                            .to(AppOccurrences::Table, AppOccurrences::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppSettings::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(AppSettings::Key).string().not_null().primary_key())
+                    .col(ColumnDef::new(AppSettings::Value).string().not_null())
+                    .to_owned(),
+            )
+            .await?;
+
+        // --- INSERINDO O VALOR PADRÃO PARA A JANELA DE TEMPO ---
+        let insert_default_setting_stmt = Statement::from_string(
+            manager.get_database_backend(),
+            format!(
+                "INSERT INTO {} (\"key\", \"value\") VALUES ('{}', '{}') ON CONFLICT (\"key\") DO NOTHING;",
+                AppSettings::Table.to_string(),
+                "OCCURRENCE_GROUPING_WINDOW_MINUTES",
+                DEFAULT_WINDOW_MINUTES
+            )
+        );
+        manager.get_connection().execute(insert_default_setting_stmt).await?;
+
+        Ok(())
+    }
+    
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager.drop_table(Table::drop().table(AppOccurrencePhotos::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(AppOccurrenceStatuses::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(CameraEvidences::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(WebsiteOccurrenceStatuses::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(OccurrenceHistory::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(AppOccurrences::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(WebsiteOccurrences::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(Cameras::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(Users::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(AppSettings::Table).to_owned()).await?; // Drop da nova tabela
+        Ok(())
     }
 }
 
-/// Enum com os nomes das colunas da tabela
 #[derive(Iden)]
-enum Users {
+enum Users { Table, Id, Name, Email, Role, CreatedAt, UpdatedAt }
+
+#[derive(Iden)]
+enum Cameras { Table, Id, Name, Region, Status, CreatedAt }
+
+#[derive(Iden)]
+enum WebsiteOccurrences { Table, Id, Description }
+
+#[derive(Iden)]
+enum WebsiteOccurrenceStatuses { Table, Id, Status, Date, OccurrenceId }
+
+#[derive(Iden)]
+enum CameraEvidences { Table, Id, FilePath, CreatedAt, CameraId, OccurrenceId }
+
+#[derive(Iden)]
+enum AppOccurrences { Table, Id, Desc }
+
+#[derive(Iden)]
+enum AppOccurrenceStatuses { Table, Id, Status, Date, AppOccurrenceId }
+
+#[derive(Iden)]
+enum AppOccurrencePhotos { Table, Id, ImageUrl, AppOccurrenceId }
+
+#[derive(Iden)]
+enum OccurrenceHistory { Table, Id, Desc, Status, FinalizedAt }
+
+#[derive(Iden)]
+enum AppSettings {
     Table,
-    Id,
-    Name,
-    Email,
-    Role,
-    CreatedAt,
-    UpdatedAt,
+    Key,
+    Value,
 }

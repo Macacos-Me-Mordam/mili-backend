@@ -4,30 +4,46 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use crate::config::app_state::AppState;
+use axum_extra::extract::cookie::CookieJar;
+
 use crate::auth::jwt::verify_token;
+use crate::config::app_state::AppState;
 
 pub async fn auth_middleware(
     State(state): State<AppState>,
+    jar: CookieJar,
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    
-    let token = req.headers()
-        .get("Authorization")
-        .and_then(|header| header.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "));
+    tracing::info!("--- Nova Requisição para Rota Privada ---");
+    tracing::info!("URI da Requisição: {:?}", req.uri());
+    tracing::info!("Cabeçalhos da Requisição: {:?}", req.headers());
+    tracing::info!("Cookie Jar: {:?}", jar);
+
+    let token = jar
+        .get("access_token")
+        .map(|cookie| cookie.value().to_string());
 
     let token = match token {
-        Some(t) => t,
-        None => return Err(StatusCode::UNAUTHORIZED),
+        Some(t) => {
+            tracing::info!("✅ Access token encontrado no cookie.");
+            t
+        }
+        None => {
+            tracing::error!("❌ Access token NÃO encontrado no cookie.");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
     };
 
-    match verify_token(token, &state.keycloak_public_key) {
+    match verify_token(&token, &state.keycloak_public_key, &state.keycloak_client_id) {
         Ok(claims) => {
+            tracing::info!("✅ Token verificado com sucesso para o utilizador: {}", claims.sub);
             req.extensions_mut().insert(claims);
             Ok(next.run(req).await)
         }
-        Err(_) => Err(StatusCode::UNAUTHORIZED),
+        Err(e) => {
+            tracing::error!("❌ Falha na verificação do token: {:?}", e);
+            Err(StatusCode::UNAUTHORIZED)
+        }
     }
 }

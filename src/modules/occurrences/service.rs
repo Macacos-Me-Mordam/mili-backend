@@ -1,0 +1,125 @@
+use sea_orm::*;
+use uuid::Uuid;
+use chrono::Utc;
+use std::collections::HashMap;
+
+use crate::database::entities::{website_occurrences, website_occurrence_statuses, occurrence_history, camera, camera_evidences};
+use super::dto::{CreateOccurrenceDto, UpdateOccurrenceStatusDto, OccurrenceResponseDto, PendingOccurrenceResponseDto, HistoricOccurrenceResponseDto, EvidenceDto};
+
+
+pub struct OccurrenceService<'a, C> where C: ConnectionTrait { db: &'a C }
+impl<'a, C> OccurrenceService<'a, C> where C: ConnectionTrait {
+    pub fn new(db: &'a C) -> Self { Self { db } }
+    
+    pub async fn create_occurrence(&self, data: CreateOccurrenceDto) -> Result<OccurrenceResponseDto, String> {
+        let new_occurrence = website_occurrences::ActiveModel { id: Set(Uuid::new_v4()), description: Set(data.description), ..Default::default() };
+        let occurrence_res = new_occurrence.insert(self.db).await.map_err(|e| e.to_string())?;
+        let new_status = website_occurrence_statuses::ActiveModel { id: Set(Uuid::new_v4()), occurrence_id: Set(occurrence_res.id), status: Set("pendente".to_string()), date: Set(Utc::now().into()), ..Default::default() };
+        new_status.insert(self.db).await.map_err(|e| e.to_string())?;
+        Ok(OccurrenceResponseDto { id: occurrence_res.id, description: occurrence_res.description, status: "pendente".to_string(), created_at: occurrence_res.id.to_string() })
+    }
+
+    pub async fn update_occurrence_status(&self, occurrence_id: Uuid, data: UpdateOccurrenceStatusDto) -> Result<(), String> {
+        let occurrence = website_occurrences::Entity::find_by_id(occurrence_id).one(self.db).await.map_err(|e| e.to_string())?.ok_or_else(|| "Ocorrência não encontrada".to_string())?;
+        let new_status = website_occurrence_statuses::ActiveModel { id: Set(Uuid::new_v4()), occurrence_id: Set(occurrence.id), status: Set(data.status.clone()), date: Set(Utc::now().into()), ..Default::default() };
+        new_status.insert(self.db).await.map_err(|e| e.to_string())?;
+        if data.status == "sucesso" || data.status == "erro" {
+            let history_entry = occurrence_history::ActiveModel { id: Set(Uuid::new_v4()), desc: Set(occurrence.description.clone()), status: Set(data.status.clone()), finalized_at: Set(Utc::now().into()), ..Default::default() };
+            history_entry.insert(self.db).await.map_err(|e| e.to_string())?;
+            occurrence.delete(self.db).await.map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    pub async fn delete_occurrence(&self, occurrence_id: Uuid) -> Result<(), String> {
+        let occurrence = website_occurrences::Entity::find_by_id(occurrence_id).one(self.db).await.map_err(|e| e.to_string())?.ok_or_else(|| "Ocorrência não encontrada".to_string())?;
+        occurrence.delete(self.db).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    pub async fn get_historic_occurrences(&self, status: &str) -> Result<Vec<HistoricOccurrenceResponseDto>, String> {
+        occurrence_history::Entity::find().filter(occurrence_history::Column::Status.eq(status)).order_by_desc(occurrence_history::Column::FinalizedAt).all(self.db).await.map_err(|e| e.to_string())?.into_iter().map(|h| HistoricOccurrenceResponseDto { id: h.id, desc: h.desc, status: h.status, finalized_at: h.finalized_at.to_string() }).collect::<Vec<_>>().pipe(Ok)
+    }
+
+
+    // --- MÉTODO get_pending_occurrences COMPLETAMENTE REFEITO ---
+    pub async fn get_pending_occurrences(&self) -> Result<Vec<PendingOccurrenceResponseDto>, String> {
+        // 1. Busca as informações base das ocorrências pendentes e da primeira câmera associada.
+        // Usamos uma subquery para evitar a duplicação que tínhamos antes.
+        #[derive(FromQueryResult)]
+        struct PendingOccurrenceBase {
+            id: Uuid,
+            description: String,
+            status: String,
+            created_at: chrono::DateTime<chrono::Utc>,
+            camera_name: String,
+            camera_region: String,
+        }
+
+        let occurrences_base = website_occurrences::Entity::find()
+            .distinct()
+            .select_only()
+            .column(website_occurrences::Column::Id)
+            .column(website_occurrences::Column::Description)
+            .column_as(website_occurrence_statuses::Column::Status, "status")
+            .column_as(website_occurrence_statuses::Column::Date, "created_at")
+            .column_as(camera::Column::Name, "camera_name")
+            .column_as(camera::Column::Region, "camera_region")
+            .join(JoinType::InnerJoin, website_occurrence_statuses::Relation::WebsiteOccurrence.def().rev())
+            .join(JoinType::InnerJoin, camera_evidences::Relation::WebsiteOccurrence.def().rev())
+            .join(JoinType::InnerJoin, camera::Relation::CameraEvidence.def().rev())
+            .filter(website_occurrence_statuses::Column::Status.eq("pendente"))
+            .into_model::<PendingOccurrenceBase>()
+            .all(self.db)
+            .await
+            .map_err(|e| e.to_string())?;
+        
+        // Se não houver ocorrências, retorna uma lista vazia.
+        if occurrences_base.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Extrai os IDs das ocorrências encontradas.
+        let occurrence_ids: Vec<Uuid> = occurrences_base.iter().map(|o| o.id).collect();
+
+        // 2. Busca TODAS as evidências para as ocorrências encontradas em uma única consulta.
+        let all_evidences = camera_evidences::Entity::find()
+            .filter(camera_evidences::Column::OccurrenceId.is_in(occurrence_ids))
+            .into_model::<EvidenceDto>()
+            .all(self.db)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // 3. Agrupa as evidências por `occurrence_id` para fácil acesso.
+        let mut evidence_map: HashMap<Uuid, Vec<EvidenceDto>> = HashMap::new();
+        for evidence in all_evidences {
+            evidence_map.entry(evidence.occurrence_id).or_default().push(evidence);
+        }
+
+        // 4. Constrói a resposta final, combinando as ocorrências com suas respectivas evidências.
+        let result = occurrences_base.into_iter().map(|base| {
+            PendingOccurrenceResponseDto {
+                id: base.id,
+                description: base.description,
+                status: base.status,
+                created_at: base.created_at,
+                camera_name: base.camera_name,
+                camera_region: base.camera_region,
+                // Pega a lista de evidências do mapa; se não houver, retorna um vetor vazio.
+                evidences: evidence_map.remove(&base.id).unwrap_or_else(Vec::new),
+            }
+        }).collect();
+
+        Ok(result)
+    }
+}
+
+trait Pipe<T> {
+    fn pipe<F, U>(self, f: F) -> U where F: FnOnce(Self) -> U, Self: Sized;
+}
+
+impl<T> Pipe<T> for T {
+    fn pipe<F, U>(self, f: F) -> U where F: FnOnce(Self) -> U, Self: Sized {
+        f(self)
+    }
+}
