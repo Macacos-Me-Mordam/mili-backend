@@ -14,7 +14,8 @@ pub async fn create_user_handler(
     State(state): State<AppState>,
     Json(payload): Json<CreateUserDto>,
 ) -> Result<Json<UserResponseDto>, (StatusCode, String)> {
-    let user_model = UserService::create_user(&state.db, &state.keycloak_client, payload)
+    let user_service = UserService::new(&state.db, &state.keycloak_client);
+    let user_model = user_service.create_user(payload)
         .await
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
 
@@ -33,7 +34,8 @@ pub async fn create_user_handler(
 pub async fn list_users_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponseDto>>, (StatusCode, String)> {
-    let users = UserService::get_all_users(&state.db)
+    let user_service = UserService::new(&state.db, &state.keycloak_client);
+    let users = user_service.get_all_users()
         .await
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 

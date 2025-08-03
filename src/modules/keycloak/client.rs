@@ -1,6 +1,20 @@
+use reqwest::{header::LOCATION, Client, StatusCode};
+use thiserror::Error;
+
 use super::config::KeycloakAdminConfig;
 use super::dto::{AdminTokenResponse, KeycloakUserRepresentation, NewKeycloakUser};
-use reqwest::Client;
+
+#[derive(Debug, Error)]
+pub enum KeycloakAdminError {
+    #[error("Falha na requisição: {0}")]
+    Request(#[from] reqwest::Error),
+
+    #[error("Erro do Keycloak (HTTP {status}): {message}")]
+    Keycloak { status: StatusCode, message: String },
+
+    #[error("Header 'Location' não encontrado na resposta ao criar usuário")]
+    LocationHeaderMissing,
+}
 
 #[derive(Clone)]
 pub struct KeycloakAdminClient {
@@ -16,8 +30,7 @@ impl KeycloakAdminClient {
         }
     }
 
-    /// Autentica o service account e retorna um token de administrador.
-    pub async fn get_admin_token(&self) -> Result<String, reqwest::Error> {
+    pub async fn get_admin_token(&self) -> Result<String, KeycloakAdminError> {
         let token_url = format!(
             "{}/realms/{}/protocol/openid-connect/token",
             self.config.admin_url, self.config.realm
@@ -30,33 +43,61 @@ impl KeycloakAdminClient {
         ];
 
         let res = self.http_client.post(&token_url).form(&params).send().await?;
-        let token_data = res.json::<AdminTokenResponse>().await?;
 
+        if !res.status().is_success() {
+            let status = res.status();
+            let message = res.text().await.unwrap_or_else(|_| "Falha ao obter detalhes do erro".to_string());
+            return Err(KeycloakAdminError::Keycloak { status, message });
+        }
+        
+        let token_data = res.json::<AdminTokenResponse>().await?;
         Ok(token_data.access_token)
     }
 
-    /// Cria um novo usuário no Keycloak usando um token de admin.
     pub async fn create_user<'a>(
         &self,
         admin_token: &str,
         user_payload: &NewKeycloakUser<'a>,
-    ) -> Result<reqwest::Response, reqwest::Error> {
+    ) -> Result<KeycloakUserRepresentation, KeycloakAdminError> {
         let create_user_url = format!(
             "{}/admin/realms/{}/users",
             self.config.admin_url, self.config.realm
         );
 
-        self.http_client
+        let response = self
+            .http_client
             .post(&create_user_url)
             .bearer_auth(admin_token)
             .json(user_payload)
             .send()
-            .await
+            .await?;
+
+        if response.status() != StatusCode::CREATED {
+            let status = response.status();
+            let message = response.text().await.unwrap_or_else(|_| "Falha ao obter detalhes do erro".to_string());
+            return Err(KeycloakAdminError::Keycloak { status, message });
+        }
+
+        let location = response
+            .headers()
+            .get(LOCATION)
+            .ok_or(KeycloakAdminError::LocationHeaderMissing)?
+            .to_str()
+            .unwrap();
+
+        let created_user = self
+            .http_client
+            .get(location)
+            .bearer_auth(admin_token)
+            .send()
+            .await?
+            .json::<KeycloakUserRepresentation>() /
+            .await?;
+
+        Ok(created_user)
     }
     
-    /// Busca por um usuário no Keycloak pelo seu email exato.
-    /// Retorna o primeiro usuário encontrado.
-    pub async fn find_user_by_email(&self, admin_token: &str, email: &str) -> Result<Option<KeycloakUserRepresentation>, reqwest::Error> {
+    pub async fn find_user_by_email(&self, admin_token: &str, email: &str) -> Result<Option<KeycloakUserRepresentation>, KeycloakAdminError> {
         let search_url = format!(
             "{}/admin/realms/{}/users?exact=true&email={}",
             self.config.admin_url, self.config.realm, email
