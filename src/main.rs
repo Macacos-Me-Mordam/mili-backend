@@ -1,58 +1,62 @@
-mod modules;
 mod config;
+mod modules;
 mod database;
-mod auth;
 
 use axum::Router;
 use dotenvy::dotenv;
+use migration::{Migrator, MigratorTrait}; 
+use sea_orm::Database;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use crate::config::database::connect;
 use crate::config::app_state::AppState;
+use crate::modules::keycloak::client::KeycloakAdminClient;
+use crate::modules::keycloak::config::KeycloakAdminConfig;
 use crate::modules::users::routes::user_routes;
-use crate::modules::keycloak::{KeycloakAdminClient, KeycloakAdminConfig};
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+    tracing_subscriber::fmt::init();
 
-    // Conexão com o banco
-    let db_conn = connect().await;
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_conn = Database::connect(&database_url)
+        .await
+        .expect("Failed to connect to database");
 
-    // Pega a chave pública do Keycloak do .env
+    tracing::info!("Running database migrations...");
+    Migrator::up(&db_conn, None)
+        .await
+        .expect("Failed to run database migrations");
+    tracing::info!("Migrations finished successfully.");
+
     let keycloak_public_key = Arc::new(
-        env::var("KEYCLOAK_PUBLIC_KEY").expect("Missing KEYCLOAK_PUBLIC_KEY"),
+        env::var("KEYCLOAK_PUBLIC_KEY").expect("KEYCLOAK_PUBLIC_KEY is not set in .env"),
     );
-
-    // Carrega a config do admin e cria o cliente
     let keycloak_admin_config = KeycloakAdminConfig::from_env();
     let keycloak_client = KeycloakAdminClient::new(keycloak_admin_config);
 
-    // Adiciona o keycloak_client ao estado da aplicação
     let app_state = AppState {
         db: db_conn,
         keycloak_public_key,
         keycloak_client,
     };
 
-    // Cria as rotas e injeta o estado
     let app = Router::new()
-        .nest("/user", user_routes())
+        .nest("/users", user_routes())
         .with_state(app_state);
 
-    // Define a porta a partir do .env, com fallback
     let port = env::var("PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
-        .expect("PORT must be a valid u16 number");
+        .expect("PORT must be a valid u16");
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    tracing::info!("🚀 Server listening on http://{}", addr);
 
-    println!("🚀 Server running on http://{}", addr);
-
-    // Inicia o servidor
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }

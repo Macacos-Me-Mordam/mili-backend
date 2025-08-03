@@ -18,7 +18,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Email).string().not_null())
                     //.col(ColumnDef::new(Users::Password).string().not_null())
                     .col(ColumnDef::new(Users::Role).string().not_null())
-                    .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(Users::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(Users::UpdatedAt).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
             .await
@@ -41,4 +42,5 @@ enum Users {
     Email,
     Role,
     CreatedAt,
+    UpdatedAt,
 }

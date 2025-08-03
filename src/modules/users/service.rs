@@ -1,87 +1,81 @@
-use crate::database::entities::user;
 use sea_orm::*;
 use uuid::Uuid;
 use chrono::Utc;
 
-// Imports corrigidos
+use crate::database::entities::user;
 use crate::modules::keycloak::client::KeycloakAdminClient;
 use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser};
 use super::dto::{CreateUserDto, UserResponseDto};
 
+pub struct UserService<'a> {
+    db: &'a DatabaseConnection,
+    keycloak_client: &'a KeycloakAdminClient,
+}
 
-pub struct UserService;
+impl<'a> UserService<'a> {
+    pub fn new(db: &'a DatabaseConnection, keycloak_client: &'a KeycloakAdminClient) -> Self {
+        Self { db, keycloak_client }
+    }
 
-impl UserService {
-    
-    // Nome da função e parâmetros corrigidos
     pub async fn create_user(
-        db: &DbConn,
-        keycloak_client: &KeycloakAdminClient,
+        &self,
         user_data: CreateUserDto,
     ) -> Result<user::Model, String> {
-        // 1. Obter o token de admin
-        let admin_token = keycloak_client
+        let admin_token = self.keycloak_client
             .get_admin_token()
             .await
             .map_err(|e| format!("Falha ao obter token de admin: {}", e))?;
 
-        // 2. Verificar se o usuário já existe no Keycloak
-        if keycloak_client.find_user_by_email(&admin_token, &user_data.email).await
+        if self.keycloak_client.find_user_by_email(&admin_token, &user_data.email).await
             .map_err(|e| format!("Erro ao buscar usuário: {}", e))?
             .is_some() {
             return Err("Usuário com este email já existe.".to_string());
         }
+        
+        // Sanitiza o nome do usuário para criar um username válido
+        let sanitized_username: String = user_data.name
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
 
-        // 3. Preparar e criar o usuário no Keycloak
         let credentials = vec![KeycloakUserCredential {
             r#type: "password",
             value: &user_data.password,
             temporary: false,
         }];
-        
+
         let new_keycloak_user = NewKeycloakUser {
-            username: &user_data.email,
+            username: &sanitized_username, // Usa o nome sanitizado
             email: &user_data.email,
             enabled: true,
             credentials,
         };
 
-        let create_response = keycloak_client
+        let created_user = self.keycloak_client
             .create_user(&admin_token, &new_keycloak_user)
             .await
             .map_err(|e| format!("Erro na requisição para criar usuário: {}", e))?;
 
-        if !create_response.status().is_success() {
-            let error_body = create_response.text().await.unwrap_or_default();
-            return Err(format!("Falha ao criar usuário no Keycloak: {}", error_body));
-        }
-        
-        // 4. Buscar o usuário recém-criado para obter seu ID
-        let created_user = keycloak_client
-            .find_user_by_email(&admin_token, &user_data.email)
-            .await
-            .map_err(|e| format!("Erro ao buscar usuário recém-criado: {}", e))?
-            .ok_or("Não foi possível encontrar o usuário recém-criado no Keycloak.")?;
+        let now = Utc::now();
 
-        // 5. Salvar o usuário no banco de dados local
         let new_user_db = user::ActiveModel {
             id: Set(Uuid::parse_str(&created_user.id).map_err(|_| "ID inválido do Keycloak".to_string())?),
-            name: Set(user_data.name),
+            name: Set(user_data.name), // Salva o nome original no banco
             email: Set(user_data.email),
             role: Set(user_data.role),
-            created_at: Set(Utc::now().into()), // Adicionado campo obrigatório
+            created_at: Set(now.into()),
+            updated_at: Set(now.into()),
         };
 
         new_user_db
-            .insert(db)
+            .insert(self.db)
             .await
             .map_err(|e| format!("Falha ao salvar usuário no banco de dados local: {}", e))
     }
 
-    pub async fn get_all_users(
-        db: &DatabaseConnection,
-    ) -> Result<Vec<UserResponseDto>, DbErr> {
-        let users = user::Entity::find().all(db).await?;
+    pub async fn get_all_users(&self) -> Result<Vec<UserResponseDto>, DbErr> {
+        let users = user::Entity::find().all(self.db).await?;
 
         Ok(users.into_iter().map(|u| UserResponseDto {
             id: u.id.to_string(),
