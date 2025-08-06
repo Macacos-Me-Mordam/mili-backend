@@ -41,10 +41,20 @@ pub struct PendingOccurrenceResponseDto {
     pub evidences: Vec<EvidenceDto>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, FromQueryResult)]
 pub struct HistoricOccurrenceResponseDto {
     pub id: Uuid,
-    pub desc: String,
+    pub description: String,
     pub status: String,
+    pub finalized_at: DateTime<chrono::Utc>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OccurrenceProofDto {
+    pub id: Uuid,
+    pub description: String,
     pub finalized_at: String,
+    pub camera_name: String,
+    pub camera_region: String,
+    pub evidences: Vec<EvidenceDto>,
 }

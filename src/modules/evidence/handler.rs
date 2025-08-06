@@ -8,25 +8,17 @@ use uuid::Uuid;
 use chrono::{Utc, Duration};
 
 use crate::config::app_state::AppState;
-// Adicione a entidade `camera` ao import
 use crate::database::entities::{app_settings, camera, camera_evidences, website_occurrences, website_occurrence_statuses};
 use crate::modules::occurrences::service::OccurrenceService;
 use crate::modules::occurrences::dto::{CreateOccurrenceDto, OccurrenceResponseDto};
 use super::dto::CreateEvidenceDto;
 
-/// POST /evidence/simulate
-/// Rota de teste que agrupa evidências se uma ocorrência pendente já existir
-/// para QUALQUER CÂMERA na mesma REGIÃO.
 pub async fn simulate_evidence_handler(
     State(state): State<AppState>,
     Json(payload): Json<CreateEvidenceDto>,
 ) -> Result<Json<OccurrenceResponseDto>, (StatusCode, String)> {
     let db = &state.db;
-
-    // --- LÓGICA MODIFICADA ---
-
-    // 1. Busca a configuração da janela de tempo no banco de dados.
-    let setting = app_settings::Entity::find_by_id("OCCURRENCE_GROUPING_WINDOW_MINUTES".to_string())
+    let setting: app_settings::Model = app_settings::Entity::find_by_id("OCCURRENCE_GROUPING_WINDOW_MINUTES".to_string())
         .one(db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -38,7 +30,6 @@ pub async fn simulate_evidence_handler(
 
     let txn = db.begin().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao iniciar transação: {}", e)))?;
     
-    // 2. Descobre a REGIÃO da câmera que enviou a evidência.
     let source_camera = camera::Entity::find_by_id(payload.camera_id)
         .one(&txn)
         .await
@@ -48,7 +39,6 @@ pub async fn simulate_evidence_handler(
     let camera_region = source_camera.region;
     tracing::info!("Evidência recebida da câmera '{}' na região '{}'", source_camera.name, camera_region);
 
-    // 3. Procura por uma ocorrência pendente recente na MESMA REGIÃO.
     let recent_occurrence = website_occurrences::Entity::find()
         .join(
             JoinType::InnerJoin,
@@ -75,7 +65,6 @@ pub async fn simulate_evidence_handler(
     let occurrence_id: Uuid;
     let occurrence_description: String;
     
-    // 4. Decide se cria uma nova ocorrência ou usa uma existente
     if let Some(existing_occurrence) = recent_occurrence {
         tracing::info!("Agrupando evidência com ocorrência existente na região '{}': {}", camera_region, existing_occurrence.id);
         occurrence_id = existing_occurrence.id;
@@ -95,7 +84,6 @@ pub async fn simulate_evidence_handler(
         occurrence_description = new_occurrence_response.description;
     }
 
-    // 5. Cria a nova evidência e a vincula à ocorrência
     let new_evidence = camera_evidences::ActiveModel {
         id: Set(Uuid::new_v4()),
         file_path: Set(payload.file_path),
@@ -106,7 +94,6 @@ pub async fn simulate_evidence_handler(
     };
     new_evidence.insert(&txn).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao salvar evidência: {}", e)))?;
 
-    // 6. Confirma todas as operações
     txn.commit().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Erro ao confirmar transação: {}", e)))?;
     
     let response = OccurrenceResponseDto {

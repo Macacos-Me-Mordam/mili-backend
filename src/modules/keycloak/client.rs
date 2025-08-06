@@ -37,7 +37,6 @@ impl KeycloakAdminClient {
         }
     }
 
-    /// Obtém token de admin via client_credentials
     pub async fn get_admin_token(&self) -> Result<String, KeycloakAdminError> {
         println!("⚙️  [get_admin_token] endpoint: {}/realms/{}/protocol/openid-connect/token",
             self.config.admin_url, self.config.realm);
@@ -65,7 +64,6 @@ impl KeycloakAdminClient {
         Ok(token_data.access_token)
     }
 
-    /// Cria um usuário já “fully set up” (pronto para login)
     pub async fn create_user<'a>(
         &self,
         admin_token: &str,
@@ -90,7 +88,6 @@ impl KeycloakAdminClient {
             return Err(KeycloakAdminError::Keycloak { status, message });
         }
 
-        // Recupera o recurso recém-criado via header Location
         let location = response
             .headers()
             .get(LOCATION)
@@ -115,7 +112,6 @@ impl KeycloakAdminClient {
         Ok(created_user)
     }
 
-    /// Busca usuário pelo e-mail
     pub async fn find_user_by_email(
         &self,
         admin_token: &str,
@@ -133,7 +129,6 @@ impl KeycloakAdminClient {
         Ok(users.into_iter().next())
     }
 
-    /// Realiza login via Resource Owner Password Grant
     pub async fn login_user(
         &self,
         email: &str,

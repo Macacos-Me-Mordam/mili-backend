@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::database::entities::user;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserDto {
@@ -15,6 +16,18 @@ pub struct UserResponseDto {
     pub email: String,
     pub role: String,
     pub created_at: String,
+}
+
+impl From<&user::Model> for UserResponseDto {
+    fn from(user: &user::Model) -> Self {
+        Self {
+            id: user.id.to_string(),
+            name: user.name.clone(),
+            email: user.email.clone(),
+            role: user.role.clone(),
+            created_at: user.created_at.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

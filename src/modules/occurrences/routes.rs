@@ -8,7 +8,8 @@ use super::handler::{
     delete_occurrence_handler,
     list_pending_occurrences_handler,
     list_successful_occurrences_handler,
-    list_failed_occurrences_handler
+    list_failed_occurrences_handler,
+    generate_proof_handler
 };
 
 pub fn occurrence_routes() -> Router<AppState> {
@@ -18,4 +19,5 @@ pub fn occurrence_routes() -> Router<AppState> {
         .route("/history/error", get(list_failed_occurrences_handler))
         .route("/:id/status", patch(update_occurrence_status_handler))
         .route("/:id", delete(delete_occurrence_handler))
+        .route("/history/:id/proof", get(generate_proof_handler))
 }
