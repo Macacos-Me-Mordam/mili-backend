@@ -4,14 +4,12 @@ use sea_orm_migration::sea_orm::{Statement, ConnectionTrait};
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
-// UUID Fixo para a nossa câmera de teste.
 const TEST_CAMERA_UUID: &str = "c1a7e5e3-4b1d-4b1d-a162-466a3e2a0e2a";
 const DEFAULT_WINDOW_MINUTES: &str = "5";
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // --- Tabela Users ---
         manager
             .create_table(
                 Table::create()
@@ -27,7 +25,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela Cameras ---
         manager
             .create_table(
                 Table::create()
@@ -42,7 +39,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- INSERINDO UMA CÂMERA DE TESTE ---
         let insert_test_camera_stmt = Statement::from_string(
             manager.get_database_backend(),
             format!(
@@ -54,7 +50,6 @@ impl MigrationTrait for Migration {
         manager.get_connection().execute(insert_test_camera_stmt).await?;
 
 
-        // --- Tabela WebsiteOccurrences ---
         manager
             .create_table(
                 Table::create()
@@ -66,7 +61,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela AppOccurrences ---
         manager
             .create_table(
                 Table::create()
@@ -78,7 +72,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- Tabela CameraEvidences ---
         manager
             .create_table(
                 Table::create()
@@ -107,7 +100,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // O resto das tabelas continua igual...
         manager
             .create_table(
                 Table::create()
@@ -178,7 +170,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // --- INSERINDO O VALOR PADRÃO PARA A JANELA DE TEMPO ---
         let insert_default_setting_stmt = Statement::from_string(
             manager.get_database_backend(),
             format!(

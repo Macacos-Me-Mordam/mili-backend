@@ -13,7 +13,6 @@ use std::env;
 use uuid::Uuid;
 use crate::auth::jwt::Claims; 
 
-/// POST /user
 pub async fn create_user_handler(
     State(state): State<AppState>,
     Json(payload): Json<CreateUserDto>,
@@ -28,7 +27,6 @@ pub async fn create_user_handler(
     Ok(Json(user_response))
 }
 
-/// GET /user
 pub async fn list_users_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponseDto>>, (StatusCode, String)> {
@@ -60,7 +58,6 @@ pub async fn get_profile_handler(
     Ok(Json(user_response))
 }
 
-/// POST /users/login
 pub async fn login_handler(
     State(state): State<AppState>,
     Json(payload): Json<LoginUserDto>,
@@ -100,7 +97,6 @@ pub async fn login_handler(
 }
 
 
-/// POST /users/refresh-token
 pub async fn refresh_token_handler(
     State(state): State<AppState>,
     jar: CookieJar,

@@ -29,19 +29,16 @@ use crate::auth::middleware::auth_middleware;
 
 #[tokio::main]
 async fn main() {
-    // Carrega variáveis de ambiente do arquivo .env
     dotenv().ok();
-    // Inicializa o sistema de logging
     tracing_subscriber::fmt::init();
 
     info!("🚀 Iniciando o servidor...");
 
-    // --- VARIÁVEIS DE AMBIENTE E BANCO DE DADOS ---
     let database_url = match env::var("DATABASE_URL") {
         Ok(url) => url,
         Err(_) => {
             error!("❌ A variável de ambiente DATABASE_URL não foi definida.");
-            std::process::exit(1);
+            return;
         }
     };
 
@@ -52,31 +49,34 @@ async fn main() {
         },
         Err(e) => {
             error!("❌ Falha ao conectar à base de dados: {}", e);
-            std::process::exit(1);
+            return;
         }
     };
 
-    // --- MIGRAÇÕES ---
     info!("A executar migrações da base de dados...");
     if let Err(e) = Migrator::up(&db_conn, None).await {
         error!("❌ Falha ao executar migrações: {}", e);
-        std::process::exit(1);
+        return;
     }
     info!("✅ Migrações terminadas com sucesso.");
 
-    // --- CONFIGURAÇÃO DO KEYCLOAK ---
     info!("Configurando cliente do Keycloak...");
-    let keycloak_admin_config = KeycloakAdminConfig::from_env();
+    let keycloak_admin_config = match KeycloakAdminConfig::from_env() {
+        Ok(config) => config,
+        Err(e) => {
+            error!("❌ Erro ao carregar configuração do Keycloak: {}", e);
+            return;
+        }
+    };
     let keycloak_client_id_clone = keycloak_admin_config.client_id.clone();
     let keycloak_client = KeycloakAdminClient::new(keycloak_admin_config);
     
-    // --- SEEDER DO USUÁRIO ADMIN ---
     info!("Verificando a existência do usuário admin...");
     let admin_email = match env::var("ADMIN_EMAIL") {
         Ok(email) => email,
         Err(_) => {
             error!("❌ A variável de ambiente ADMIN_EMAIL não foi definida para o seeder.");
-            std::process::exit(1);
+            return;
         }
     };
     
@@ -90,7 +90,7 @@ async fn main() {
                 Ok(pass) => pass,
                 Err(_) => {
                     error!("❌ A variável de ambiente ADMIN_PASSWORD não foi definida para o seeder.");
-                    std::process::exit(1);
+                    return;
                 }
             };
 
@@ -117,13 +117,12 @@ async fn main() {
         Ok(key) => key,
         Err(_) => {
             error!("❌ A variável de ambiente KEYCLOAK_PUBLIC_KEY não foi definida.");
-            std::process::exit(1);
+            return;
         }
     };
     let keycloak_public_key = Arc::new(format!("-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----", raw_key));
     let keycloak_client_id = Arc::new(keycloak_client_id_clone);
 
-    // --- ESTADO DA APLICAÇÃO ---
     let app_state = AppState {
         db: db_conn,
         keycloak_public_key,
@@ -131,7 +130,6 @@ async fn main() {
         keycloak_client_id,
     };
 
-    // --- DEFINIÇÃO DAS ROTAS ---
     info!("Configurando rotas da aplicação...");
     let private_routes = Router::new()
         .nest("/users", private_user_routes())
@@ -151,13 +149,12 @@ async fn main() {
         .merge(private_routes)
         .with_state(app_state);
 
-    // --- INICIALIZAÇÃO DO SERVIDOR ---
     let port_str = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let port = match port_str.parse::<u16>() {
         Ok(p) => p,
         Err(_) => {
             error!("❌ A variável PORT='{}' não é uma porta válida.", port_str);
-            std::process::exit(1);
+            return;
         }
     };
 
@@ -168,7 +165,7 @@ async fn main() {
         Ok(l) => l,
         Err(e) => {
             error!("❌ Falha ao iniciar o listener do servidor na porta {}: {}", port, e);
-            std::process::exit(1);
+            return;
         }
     };
 

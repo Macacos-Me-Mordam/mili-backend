@@ -1,5 +1,3 @@
-// macacos-me-mordam/mili-backend/mili-backend-sk/src/modules/users/routes.rs
-
 use axum::{
     Router,
     routing::{post, get},

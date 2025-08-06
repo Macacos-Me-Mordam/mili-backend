@@ -57,14 +57,12 @@ where
     }
 
     pub async fn update_occurrence_status(&self, occurrence_id: Uuid, data: UpdateOccurrenceStatusDto) -> Result<(), String> {
-        // Apenas verifica se a ocorrência existe
         website_occurrences::Entity::find_by_id(occurrence_id)
             .one(self.db)
             .await
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Ocorrência não encontrada".to_string())?;
 
-        // Insere o novo status (pendente -> em análise -> sucesso/erro)
         let new_status = website_occurrence_statuses::ActiveModel {
             id: Set(Uuid::new_v4()),
             occurrence_id: Set(occurrence_id),
@@ -74,8 +72,6 @@ where
         };
         new_status.insert(self.db).await.map_err(|e| e.to_string())?;
 
-        // Não há mais exclusão ou movimentação para a tabela de histórico.
-        // A ocorrência e suas evidências permanecem intactas.
         Ok(())
     }
 
@@ -191,7 +187,6 @@ where
     }
 
     pub async fn get_occurrence_details_for_proof(&self, occurrence_id: Uuid) -> Result<Option<OccurrenceProofDto>, String> {
-        // 1. Busca a ocorrência e seu último status
         let occurrence_data = website_occurrences::Entity::find_by_id(occurrence_id)
             .find_also_related(website_occurrence_statuses::Entity)
             .one(self.db)
@@ -203,7 +198,6 @@ where
             _ => return Ok(None),
         };
         
-        // 2. Busca as evidências e a câmera associada
         let evidences_with_camera = camera_evidences::Entity::find()
             .filter(camera_evidences::Column::OccurrenceId.eq(occurrence_id))
             .find_also_related(camera::Entity)
@@ -227,11 +221,9 @@ where
             occurrence_id: ev.occurrence_id,
         }).collect();
 
-        // 3. Monta o DTO de resposta
         Ok(Some(OccurrenceProofDto {
             id: occurrence.id,
             description: occurrence.description,
-            status: status.status,
             finalized_at: status.date.to_string(),
             camera_name,
             camera_region,

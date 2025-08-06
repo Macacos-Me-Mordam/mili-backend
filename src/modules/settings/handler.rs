@@ -7,7 +7,6 @@ use crate::config::app_state::AppState;
 use super::dto::UpdateSettingDto;
 use super::service::SettingsService;
 
-/// PATCH /settings/:key
 pub async fn update_setting_handler(
     State(state): State<AppState>,
     Path(key): Path<String>,

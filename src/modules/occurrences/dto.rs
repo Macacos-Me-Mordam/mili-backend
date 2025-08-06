@@ -53,7 +53,6 @@ pub struct HistoricOccurrenceResponseDto {
 pub struct OccurrenceProofDto {
     pub id: Uuid,
     pub description: String,
-    pub status: String,
     pub finalized_at: String,
     pub camera_name: String,
     pub camera_region: String,
