@@ -1,11 +1,11 @@
+use chrono::Utc;
 use sea_orm::*;
 use uuid::Uuid;
-use chrono::Utc;
 
+use super::dto::{CreateUserDto, LoginResponseDto, LoginUserDto, RefreshTokenDto, UserResponseDto};
 use crate::database::entities::user;
 use crate::modules::keycloak::client::KeycloakAdminClient;
-use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser };
-use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto, RefreshTokenDto};
+use crate::modules::keycloak::dto::{KeycloakUserCredential, NewKeycloakUser};
 
 pub struct UserService<'a> {
     db: &'a DatabaseConnection,
@@ -15,28 +15,26 @@ pub struct UserService<'a> {
 impl<'a> UserService<'a> {
     pub fn new(db: &'a DatabaseConnection, keycloak_client: &'a KeycloakAdminClient) -> Self {
         println!("🔧 Inicializando UserService");
-        Self { db, keycloak_client }
+        Self {
+            db,
+            keycloak_client,
+        }
     }
 
-pub async fn create_user(
-        &self,
-        user_data: CreateUserDto,
-    ) -> Result<user::Model, String> {
+    pub async fn create_user(&self, user_data: CreateUserDto) -> Result<user::Model, String> {
         println!("⚙️  [UserService::create_user] email: {}", user_data.email);
 
         // 1. token admin
-        let admin_token = self.keycloak_client
-            .get_admin_token()
-            .await
-            .map_err(|e| {
-                let msg = format!("Falha ao obter token de admin: {}", e);
-                println!("❌ {}", msg);
-                msg
-            })?;
+        let admin_token = self.keycloak_client.get_admin_token().await.map_err(|e| {
+            let msg = format!("Falha ao obter token de admin: {}", e);
+            println!("❌ {}", msg);
+            msg
+        })?;
         println!("✅ [create_user] token admin obtido");
 
         // 2. verifica existing
-        let existing = self.keycloak_client
+        let existing = self
+            .keycloak_client
             .find_user_by_email(&admin_token, &user_data.email)
             .await
             .map_err(|e| {
@@ -56,7 +54,7 @@ pub async fn create_user(
             value: &user_data.password,
             temporary: false,
         }];
-        
+
         // Garantindo que o username seja o próprio email para consistência
         let new_keycloak_user = NewKeycloakUser {
             username: &user_data.email, // <- Usando email como username
@@ -69,7 +67,8 @@ pub async fn create_user(
         println!("📦 [create_user] NewKeycloakUser: {:?}", new_keycloak_user);
 
         // 4. cria no KC
-        let created_user = self.keycloak_client
+        let created_user = self
+            .keycloak_client
             .create_user(&admin_token, &new_keycloak_user)
             .await
             .map_err(|e| {
@@ -94,61 +93,55 @@ pub async fn create_user(
             updated_at: Set(now.into()),
         };
         println!("💾 [create_user] inserindo no DB local...");
-        let inserted = new_user_db.insert(self.db).await
-            .map_err(|e| {
-                let msg = format!("Falha ao salvar no banco local: {}", e);
-                println!("❌ {}", msg);
-                msg
-            })?;
+        let inserted = new_user_db.insert(self.db).await.map_err(|e| {
+            let msg = format!("Falha ao salvar no banco local: {}", e);
+            println!("❌ {}", msg);
+            msg
+        })?;
         println!("✅ [create_user] salvo no DB local: {:?}", inserted);
 
         Ok(inserted)
+    }
+
+    pub async fn find_user_by_id(&self, user_id: Uuid) -> Result<Option<user::Model>, String> {
+        user::Entity::find_by_id(user_id)
+            .one(self.db)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     pub async fn get_all_users(&self) -> Result<Vec<UserResponseDto>, DbErr> {
         println!("⚙️  [UserService::get_all_users] buscando todos usuários");
         let users = user::Entity::find().all(self.db).await?;
         println!("👥 [get_all_users] {} usuários encontrados", users.len());
-        Ok(users
-            .into_iter()
-            .map(|u| UserResponseDto {
-                id: u.id.to_string(),
-                name: u.name,
-                email: u.email,
-                role: u.role,
-                created_at: u.created_at.to_string(),
-            })
-            .collect())
+        Ok(users.iter().map(UserResponseDto::from).collect())
     }
 
-    pub async fn login_user(
-    &self,
-    login_data: LoginUserDto,
-) -> Result<LoginResponseDto, String> {
-    println!("⚙️  [UserService::login_user] email: {}", login_data.email);
+    pub async fn login_user(&self, login_data: LoginUserDto) -> Result<LoginResponseDto, String> {
+        println!("⚙️  [UserService::login_user] email: {}", login_data.email);
 
-    let token_response = self
-        .keycloak_client
-        .login_user(&login_data.email, &login_data.password)
-        .await
-        .map_err(|e| {
-            let msg = format!("Falha na autenticação: {}", e);
-            println!("❌ {}", msg);
-            msg
-        })?;
+        let token_response = self
+            .keycloak_client
+            .login_user(&login_data.email, &login_data.password)
+            .await
+            .map_err(|e| {
+                let msg = format!("Falha na autenticação: {}", e);
+                println!("❌ {}", msg);
+                msg
+            })?;
 
-    println!(
-        "✅ [login_user] access_token recebido ({} chars)",
-        token_response.access_token.len()
-    );
+        println!(
+            "✅ [login_user] access_token recebido ({} chars)",
+            token_response.access_token.len()
+        );
 
-    Ok(LoginResponseDto {
-        access_token: token_response.access_token,
-        refresh_token: token_response.refresh_token,
-    })
-}
+        Ok(LoginResponseDto {
+            access_token: token_response.access_token,
+            refresh_token: token_response.refresh_token,
+        })
+    }
 
-pub async fn refresh_access_token(
+    pub async fn refresh_access_token(
         &self,
         refresh_token_data: RefreshTokenDto,
     ) -> Result<LoginResponseDto, String> {

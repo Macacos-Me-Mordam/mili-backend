@@ -2,6 +2,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json, Response},
+    Extension
 };
 use axum_extra::extract::cookie::{Cookie, SameSite, CookieJar};
 use super::dto::{CreateUserDto, UserResponseDto, LoginUserDto};
@@ -9,6 +10,8 @@ use super::service::UserService;
 use time::Duration;
 use crate::config::app_state::AppState;
 use std::env;
+use uuid::Uuid;
+use crate::auth::jwt::Claims; 
 
 /// POST /user
 pub async fn create_user_handler(
@@ -19,14 +22,8 @@ pub async fn create_user_handler(
     let user_model = user_service.create_user(payload)
         .await
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
-
-    let user_response = UserResponseDto {
-        id: user_model.id.to_string(),
-        name: user_model.name,
-        email: user_model.email,
-        role: user_model.role,
-        created_at: user_model.created_at.to_string(),
-    };
+    
+    let user_response = UserResponseDto::from(&user_model);
     
     Ok(Json(user_response))
 }
@@ -41,6 +38,26 @@ pub async fn list_users_handler(
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     Ok(Json(users))
+}
+
+pub async fn get_profile_handler(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+) -> Result<Json<UserResponseDto>, (StatusCode, String)> {
+    let user_service = UserService::new(&state.db, &state.keycloak_client);
+
+    let user_id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "ID de usuário inválido no token".to_string()))?;
+
+    let user_model = user_service
+        .find_user_by_id(user_id)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Usuário não encontrado".to_string()))?;
+
+    let user_response = UserResponseDto::from(&user_model);
+
+    Ok(Json(user_response))
 }
 
 /// POST /users/login

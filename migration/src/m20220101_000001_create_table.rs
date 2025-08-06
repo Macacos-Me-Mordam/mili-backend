@@ -77,20 +77,6 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-            
-        // --- Tabela OccurrenceHistory (com coluna 'status') ---
-        manager
-            .create_table(
-                Table::create()
-                    .table(OccurrenceHistory::Table)
-                    .if_not_exists()
-                    .col(ColumnDef::new(OccurrenceHistory::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(OccurrenceHistory::Desc).string().not_null())
-                    .col(ColumnDef::new(OccurrenceHistory::Status).string().not_null()) // <- Adicionado
-                    .col(ColumnDef::new(OccurrenceHistory::FinalizedAt).timestamp_with_time_zone().not_null())
-                    .to_owned(),
-            )
-            .await?;
 
         // --- Tabela CameraEvidences ---
         manager
@@ -213,7 +199,6 @@ impl MigrationTrait for Migration {
         manager.drop_table(Table::drop().table(AppOccurrenceStatuses::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(CameraEvidences::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(WebsiteOccurrenceStatuses::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(OccurrenceHistory::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(AppOccurrences::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(WebsiteOccurrences::Table).to_owned()).await?;
         manager.drop_table(Table::drop().table(Cameras::Table).to_owned()).await?;
@@ -247,8 +232,6 @@ enum AppOccurrenceStatuses { Table, Id, Status, Date, AppOccurrenceId }
 #[derive(Iden)]
 enum AppOccurrencePhotos { Table, Id, ImageUrl, AppOccurrenceId }
 
-#[derive(Iden)]
-enum OccurrenceHistory { Table, Id, Desc, Status, FinalizedAt }
 
 #[derive(Iden)]
 enum AppSettings {

@@ -1,13 +1,17 @@
 use axum::{
-    extract::{State, Path},
-    http::StatusCode,
+    extract::{Path, State},
+    http::{StatusCode},
     response::{IntoResponse, Json},
+    debug_handler
 };
 use uuid::Uuid;
 
-use crate::config::app_state::AppState;
-use super::dto::{UpdateOccurrenceStatusDto, PendingOccurrenceResponseDto, HistoricOccurrenceResponseDto};
+
+use super::dto::{
+    HistoricOccurrenceResponseDto, PendingOccurrenceResponseDto, UpdateOccurrenceStatusDto, OccurrenceProofDto
+};
 use super::service::OccurrenceService;
+use crate::config::app_state::AppState;
 
 pub async fn update_occurrence_status_handler(
     State(state): State<AppState>,
@@ -15,7 +19,10 @@ pub async fn update_occurrence_status_handler(
     Json(payload): Json<UpdateOccurrenceStatusDto>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let occurrence_service = OccurrenceService::new(&state.db);
-    occurrence_service.update_occurrence_status(occurrence_id, payload).await.map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
+    occurrence_service
+        .update_occurrence_status(occurrence_id, payload)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
     Ok(StatusCode::OK)
 }
 
@@ -24,14 +31,29 @@ pub async fn delete_occurrence_handler(
     Path(occurrence_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let occurrence_service = OccurrenceService::new(&state.db);
-    occurrence_service.delete_occurrence(occurrence_id).await.map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
+    occurrence_service
+        .delete_occurrence(occurrence_id)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[debug_handler]
+pub async fn generate_proof_handler(
+    State(state): State<AppState>,
+    Path(occurrence_id): Path<Uuid>,
+) -> Result<Json<OccurrenceProofDto>, (StatusCode, String)> {
+    let occurrence_service = OccurrenceService::new(&state.db);
 
-// --- NOVOS HANDLERS ---
+    let proof_data = occurrence_service
+        .get_occurrence_details_for_proof(occurrence_id)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Ocorrência não encontrada.".to_string()))?;
 
-/// GET /occurrences/pending
+    Ok(Json(proof_data))
+}
+
 pub async fn list_pending_occurrences_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PendingOccurrenceResponseDto>>, (StatusCode, String)> {
@@ -43,7 +65,6 @@ pub async fn list_pending_occurrences_handler(
     Ok(Json(occurrences))
 }
 
-/// GET /occurrences/history/success
 pub async fn list_successful_occurrences_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<HistoricOccurrenceResponseDto>>, (StatusCode, String)> {
@@ -55,7 +76,6 @@ pub async fn list_successful_occurrences_handler(
     Ok(Json(occurrences))
 }
 
-/// GET /occurrences/history/error
 pub async fn list_failed_occurrences_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<HistoricOccurrenceResponseDto>>, (StatusCode, String)> {
