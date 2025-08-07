@@ -1,15 +1,44 @@
-# Diretórios e arquivos de build do Rust
+*.class
+
+
+/node_modules
+
+# SSH Keys
+
+*.pem
+*.ppk
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# Merge Files
+*.bak
+
+#Gradle temporary files
 target/
-**/target/
 
-# Variáveis de ambiente
-.env
-**/.env
+#Eclipse files
+**/.project
+**/.classpath
+**/.settings/
+/bin/
+blog/bin/
+**/.tern-project
+**/.factorypath
 
-# Arquivos de backup e compactados
-*.zip
-**/src.zip
+#IntelliJ files
+**/*.iml
+**/.idea
+**/.gradle
 
-# Arquivos de cache e de sistema
-.rustc_info.json
-**/CACHEDIR.TAGs
+#Other Files
+*.ini
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+/.metadata/
