@@ -1,5 +1,6 @@
 package br.com.mili.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
@@ -23,6 +24,7 @@ public class Evidence {
     @Column(name = "camera_id", nullable = false)
     private UUID cameraId;
 
+    @JsonIgnore
     @Column(name = "occurrence_id")
     private UUID occurrenceId;
 

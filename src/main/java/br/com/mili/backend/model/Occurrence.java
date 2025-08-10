@@ -2,6 +2,7 @@ package br.com.mili.backend.model;
 
 import jakarta.persistence.*;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.time.OffsetDateTime;
@@ -16,6 +17,10 @@ public class Occurrence {
 
     @Column(nullable = false)
     private String description;
+
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinColumn(name = "occurrence_id", referencedColumnName = "id")
+    private List<Evidence> evidences;
 
     @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
     private OffsetDateTime createdAt;
@@ -69,15 +74,23 @@ public class Occurrence {
         this.finalizedAt = finalizedAt;
     }
 
+    public List<Evidence> getEvidences() {
+        return evidences;
+    }
+
+    public void setEvidences(List<Evidence> evidences) {
+        this.evidences = evidences;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         Occurrence that = (Occurrence) o;
-        return Objects.equals(getId(), that.getId()) && Objects.equals(getDescription(), that.getDescription()) && Objects.equals(getCreatedAt(), that.getCreatedAt()) && Objects.equals(getUpdatedAt(), that.getUpdatedAt()) && Objects.equals(getFinalizedAt(), that.getFinalizedAt());
+        return Objects.equals(getId(), that.getId()) && Objects.equals(getDescription(), that.getDescription()) && Objects.equals(getEvidences(), that.getEvidences()) && Objects.equals(getCreatedAt(), that.getCreatedAt()) && Objects.equals(getUpdatedAt(), that.getUpdatedAt()) && Objects.equals(getFinalizedAt(), that.getFinalizedAt());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getDescription(), getCreatedAt(), getUpdatedAt(), getFinalizedAt());
+        return Objects.hash(getId(), getDescription(), getEvidences(), getCreatedAt(), getUpdatedAt(), getFinalizedAt());
     }
 }
