@@ -1,4 +1,3 @@
-// controllers/EvidenceController.java
 package br.com.mili.backend.controllers;
 
 import br.com.mili.backend.data.dto.CreateEvidenceDto;
