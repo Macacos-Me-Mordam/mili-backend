@@ -1,13 +1,12 @@
 package br.com.mili.backend.data.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
-public class UserDTO  {
+public class UserDto {
 
     private static final long serialVersionUID = 1L;
     private UUID id;
@@ -19,7 +18,7 @@ public class UserDTO  {
     private OffsetDateTime createdAt;
     private OffsetDateTime updateAt;
 
-    public UserDTO() {
+    public UserDto() {
     }
 
     public UUID getId() {
@@ -73,7 +72,7 @@ public class UserDTO  {
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
-        UserDTO userDTO = (UserDTO) o;
+        UserDto userDTO = (UserDto) o;
         return Objects.equals(getId(), userDTO.getId()) && Objects.equals(getName(), userDTO.getName()) && Objects.equals(getEmail(), userDTO.getEmail()) && Objects.equals(getPassword(), userDTO.getPassword()) && Objects.equals(getCreatedAt(), userDTO.getCreatedAt()) && Objects.equals(getUpdateAt(), userDTO.getUpdateAt());
     }
 
