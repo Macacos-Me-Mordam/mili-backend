@@ -1,9 +1,0 @@
-pub mod user;
-pub mod camera;
-pub mod camera_evidences;
-pub mod app_occurrence_photos;
-pub mod website_occurrences;
-pub mod app_occurrences;
-pub mod app_occurrence_statuses;
-pub mod website_occurrence_statuses;
-pub mod app_settings;
