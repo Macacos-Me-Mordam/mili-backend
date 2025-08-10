@@ -3,6 +3,7 @@ package br.com.mili.backend.services;
 import br.com.mili.backend.data.dto.CreateOccurrenceDto;
 import br.com.mili.backend.data.dto.OccurrenceResponseDto;
 import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
+import br.com.mili.backend.exception.ResourceNotFoundException;
 import br.com.mili.backend.model.OccurrenceStatus;
 import br.com.mili.backend.model.Occurrence;
 import br.com.mili.backend.repository.OccurrenceStatusRepository;
@@ -14,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class OccurrenceService {
@@ -44,4 +47,28 @@ public class OccurrenceService {
         return new OccurrenceResponseDto(saved.getId());
     }
 
+    public List<Occurrence> getProcessingOccurrences() {
+        return repository.findByStatus(OccurrenceStatusEnum.processing);
+    }
+
+    public List<Occurrence> getResolvedOccurrences() {
+        return repository.findByStatus(OccurrenceStatusEnum.resolved);
+    }
+
+    public List<Occurrence> getClosedOccurrences() {
+        return repository.findByStatus(OccurrenceStatusEnum.closed);
+    }
+
+    @Transactional
+    public void updateOccurrenceStatus(UUID occurrenceId, OccurrenceStatusEnum newStatus) {
+        repository.findById(occurrenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Occurrence not found with id: " + occurrenceId));
+
+        var status = new OccurrenceStatus();
+        status.setOccurrenceId(occurrenceId);
+        status.setStatus(newStatus);
+        status.setStatusDate(OffsetDateTime.now());
+
+        occurrenceStatusRepository.save(status);
+    }
 }
