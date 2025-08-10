@@ -7,7 +7,7 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'occurrence_status') THEN
-    CREATE TYPE occurrence_status AS ENUM ('new', 'in_review', 'resolved', 'closed');
+    CREATE TYPE occurrence_status AS ENUM ('processing', 'resolved', 'closed');
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'frequency_type') THEN
