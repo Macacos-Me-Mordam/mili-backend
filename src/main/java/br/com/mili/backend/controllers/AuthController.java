@@ -1,7 +1,7 @@
 package br.com.mili.backend.controllers;
 
-import br.com.mili.backend.data.dto.LoginRequest;
-import br.com.mili.backend.data.dto.LoginResponse;
+import br.com.mili.backend.data.dto.LoginRequestDto;
+import br.com.mili.backend.data.dto.LoginResponseDto;
 import br.com.mili.backend.security.jwt.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
@@ -43,7 +43,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto req) {
         Authentication auth = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.email(), req.password())
         );
@@ -62,11 +62,11 @@ public class AuthController {
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
-                .body(new LoginResponse("Authenticated!"));
+                .body(new LoginResponseDto("Authenticated!"));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<LoginResponse> logout() {
+    public ResponseEntity<LoginResponseDto> logout() {
         ResponseCookie cookie = ResponseCookie.from(cookieName, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
@@ -78,7 +78,7 @@ public class AuthController {
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
-                .body(new LoginResponse("logged out"));
+                .body(new LoginResponseDto("logged out"));
     }
 
 
