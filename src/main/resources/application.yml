@@ -17,6 +17,17 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
 logging:
   level:
     br.com.mili.backend: DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:070bf38968c95f41ec7c1760b1cd46f5929f26e3e61bce4ecfa3230b4ac578c7}
+    expiration: 3600
+    cookie-name: access_token
+    cookie-domain: localhost        #ajustar para dominio
+    cookie-secure: false            # true em produção (HTTPS)
+    cookie-samesite: Lax            # None/Strict/Lax (None exige HTTPS)
+
