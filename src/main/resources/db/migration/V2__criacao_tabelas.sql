@@ -72,16 +72,19 @@ CREATE TABLE IF NOT EXISTS occurrence_statuses (
 );
 
 CREATE TABLE IF NOT EXISTS app_occurrence (
-  occurrence_id UUID PRIMARY KEY REFERENCES occurrences (id) ON DELETE CASCADE,
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   photo_url     TEXT NOT NULL CHECK (length(btrim(photo_url)) > 0),
   description   TEXT NOT NULL CHECK (length(btrim(description)) > 0),
   address       TEXT NOT NULL CHECK (length(btrim(address)) > 0),
-  frequency     frequency_type NOT NULL DEFAULT 'one_time'
+  frequency     frequency_type NOT NULL DEFAULT 'one_time',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finalized_at  TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS app_occurrence_statuses (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  occurrence_id  UUID NOT NULL REFERENCES occurrences (id) ON DELETE CASCADE,
+  app_occurrence_id  UUID NOT NULL REFERENCES app_occurrence (id) ON DELETE CASCADE,
   status         occurrence_status NOT NULL,
   status_date    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
