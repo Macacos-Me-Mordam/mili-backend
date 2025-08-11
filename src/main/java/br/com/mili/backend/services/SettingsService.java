@@ -4,12 +4,15 @@ import br.com.mili.backend.data.dto.EvidenceWindowDto;
 import br.com.mili.backend.model.Settings;
 import br.com.mili.backend.repository.SettingsRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SettingsService {
 
+    private Logger logger = LoggerFactory.getLogger(UserService.class.getName());
     private static final String KEY_WINDOW = "evidence.window.seconds";
 
     private SettingsRepository repository;
@@ -30,6 +33,7 @@ public class SettingsService {
 
     @Transactional
     public EvidenceWindowDto updateEvidenceWindow(long seconds) {
+        logger.info("Updating window evidence for: {}", seconds, " seconds!");
         if (seconds <= 0) throw new IllegalArgumentException("windowSeconds deve ser > 0");
         var setting = repository.findById(KEY_WINDOW).orElse(new Settings(KEY_WINDOW, String.valueOf(seconds)));
         setting.setValue(String.valueOf(seconds));
