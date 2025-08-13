@@ -1,3 +1,7 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+
 spring:
   application:
     name: backend
@@ -27,7 +31,6 @@ app:
     secret: ${JWT_SECRET:070bf38968c95f41ec7c1760b1cd46f5929f26e3e61bce4ecfa3230b4ac578c7}
     expiration: 3600
     cookie-name: access_token
-    cookie-domain: localhost        #ajustar para dominio
-    cookie-secure: false            # true em produção (HTTPS)
-    cookie-samesite: Lax            # None/Strict/Lax (None exige HTTPS)
-
+    cookie-domain: localhost
+    cookie-secure: false         # Mantém como 'false' para desenvolvimento em HTTP
+    cookie-samesite: None        # ALTERADO DE 'Lax' PARA 'None'

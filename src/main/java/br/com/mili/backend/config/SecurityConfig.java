@@ -39,40 +39,58 @@ public class SecurityConfig {
         return cfg.getAuthenticationManager();
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
-            JwtAuthFilter jwtFilter,
-            DaoAuthenticationProvider provider) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> {
-                }) // usa o bean corsConfigurationSource()
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // libera preflight
-                        .requestMatchers("/auth/**", "/health").permitAll()
-                        .anyRequest().authenticated())
-                .authenticationProvider(provider)
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+    // macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
+// Arquivo: macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
 
-        return http.build();
-    }
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http,
+        JwtAuthFilter jwtFilter,
+        DaoAuthenticationProvider provider) throws Exception {
+    http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> {}) // usa o bean corsConfigurationSource()
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera preflight
+                    
+                    // CORREÇÃO: Apenas login, logout e health são públicos. 
+                    // A rota "/auth/profile" foi REMOVIDA desta linha.
+                    .requestMatchers("/auth/login", "/auth/logout", "/health").permitAll() 
+                    
+                    // Agora, qualquer outra requisição (incluindo /auth/profile)
+                    // exigirá autenticação, como deve ser.
+                    .anyRequest().authenticated()) 
+            .authenticationProvider(provider)
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+    return http.build();
+}
 
     // ==== CORS ====
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration cfg = new CorsConfiguration();
+    // macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
 
-        cfg.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3001",
-                "http://127.0.0.1:3001"));
+// ... (resto da classe)
 
-        cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("*"));
-        cfg.setAllowCredentials(true);
+// ==== CORS ====
+@Bean
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration cfg = new CorsConfiguration();
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", cfg);
-        return source;
-    }
+    // Defina as origens exatas que podem acessar sua API
+    cfg.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3001",
+            "http://127.0.0.1:3001"
+    ));
+
+    // Permite todos os métodos e cabeçalhos comuns
+    cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    cfg.setAllowedHeaders(List.of("*"));
+    
+    // Permite o envio de credenciais (cookies, tokens)
+    cfg.setAllowCredentials(true);
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", cfg);
+    return source;
+}
 }
