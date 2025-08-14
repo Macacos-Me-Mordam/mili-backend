@@ -33,4 +33,4 @@ app:
     cookie-name: access_token
     cookie-domain: localhost
     cookie-secure: false         # Mantém como 'false' para desenvolvimento em HTTP
-    cookie-samesite: None        # ALTERADO DE 'Lax' PARA 'None'
+    cookie-samesite: Lax        # DE 'Lax' PARA 'None'

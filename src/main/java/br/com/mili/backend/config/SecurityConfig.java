@@ -39,9 +39,6 @@ public class SecurityConfig {
         return cfg.getAuthenticationManager();
     }
 
-    // macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
-// Arquivo: macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
-
 @Bean
 public SecurityFilterChain filterChain(HttpSecurity http,
         JwtAuthFilter jwtFilter,
@@ -52,41 +49,27 @@ public SecurityFilterChain filterChain(HttpSecurity http,
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera preflight
-                    
-                    // CORREÇÃO: Apenas login, logout e health são públicos. 
-                    // A rota "/auth/profile" foi REMOVIDA desta linha.
+
                     .requestMatchers("/auth/login", "/auth/logout", "/health").permitAll() 
-                    
-                    // Agora, qualquer outra requisição (incluindo /auth/profile)
-                    // exigirá autenticação, como deve ser.
+
                     .anyRequest().authenticated()) 
             .authenticationProvider(provider)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
 }
-
-    // ==== CORS ====
-    // macacos-me-mordam/mili-backend/mili-backend-dev/src/main/java/br/com/mili/backend/config/SecurityConfig.java
-
-// ... (resto da classe)
-
-// ==== CORS ====
 @Bean
 public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration cfg = new CorsConfiguration();
 
-    // Defina as origens exatas que podem acessar sua API
     cfg.setAllowedOrigins(Arrays.asList(
             "http://localhost:3001",
-            "http://127.0.0.1:3001"
+            "http://localhost:3000"
     ));
 
-    // Permite todos os métodos e cabeçalhos comuns
     cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     cfg.setAllowedHeaders(List.of("*"));
     
-    // Permite o envio de credenciais (cookies, tokens)
     cfg.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
