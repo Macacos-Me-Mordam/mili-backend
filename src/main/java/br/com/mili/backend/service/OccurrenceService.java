@@ -1,7 +1,7 @@
-package br.com.mili.backend.services;
+package br.com.mili.backend.service;
 
-import br.com.mili.backend.data.dto.CreateOccurrenceDto;
-import br.com.mili.backend.data.dto.OccurrenceResponseDto;
+import br.com.mili.backend.data.dto.CreateOccurrenceDTO;
+import br.com.mili.backend.data.dto.OccurrenceResponseDTO;
 import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.exception.ResourceNotFoundException;
 import br.com.mili.backend.model.OccurrenceStatus;
@@ -33,7 +33,7 @@ public class OccurrenceService {
     }
 
     @Transactional
-    public OccurrenceResponseDto createOccurrence(CreateOccurrenceDto dto) {
+    public OccurrenceResponseDTO createOccurrence(CreateOccurrenceDTO dto) {
         logger.info("Creating one app occurrence!");
         var occ = new Occurrence();
         occ.setDescription(dto.description());
@@ -45,7 +45,7 @@ public class OccurrenceService {
         status.setStatusDate(OffsetDateTime.now());
         occurrenceStatusRepository.save(status);
 
-        return new OccurrenceResponseDto(saved.getId());
+        return new OccurrenceResponseDTO(saved.getId());
     }
 
     public List<Occurrence> getProcessingOccurrences() {

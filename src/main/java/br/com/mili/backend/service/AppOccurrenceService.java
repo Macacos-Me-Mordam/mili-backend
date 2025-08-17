@@ -1,7 +1,7 @@
-package br.com.mili.backend.services;
+package br.com.mili.backend.service;
 
-import br.com.mili.backend.data.dto.CreateAppOccurrenceDto;
-import br.com.mili.backend.data.dto.OccurrenceResponseDto;
+import br.com.mili.backend.data.dto.CreateAppOccurrenceDTO;
+import br.com.mili.backend.data.dto.OccurrenceResponseDTO;
 import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.exception.ResourceNotFoundException;
 import br.com.mili.backend.model.*;
@@ -16,8 +16,6 @@ import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-
-import static br.com.mili.backend.mapper.ObjectMapper.parseObject;
 
 @Service
 public class AppOccurrenceService {
@@ -35,7 +33,7 @@ public class AppOccurrenceService {
     }
 
     @Transactional
-    public OccurrenceResponseDto createOccurrence(CreateAppOccurrenceDto occurrence) {
+    public OccurrenceResponseDTO createOccurrence(CreateAppOccurrenceDTO occurrence) {
         logger.info("Creating one app occurrence!");
         var entity = new AppOccurrence();
         entity.setDescription(occurrence.description());
@@ -51,7 +49,7 @@ public class AppOccurrenceService {
         status.setStatusDate(OffsetDateTime.now());
         appOccurrenceStatusRepository.save(status);
 
-        return new OccurrenceResponseDto(savedEntity.getId());
+        return new OccurrenceResponseDTO(savedEntity.getId());
     }
 
     public List<AppOccurrence> getProcessingOccurrences() {

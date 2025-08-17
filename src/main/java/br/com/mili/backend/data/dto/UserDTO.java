@@ -6,7 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
-public class UserDto {
+public class UserDTO {
 
     private static final long serialVersionUID = 1L;
     private UUID id;
@@ -18,7 +18,7 @@ public class UserDto {
     private OffsetDateTime createdAt;
     private OffsetDateTime updateAt;
 
-    public UserDto() {
+    public UserDTO() {
     }
 
     public UUID getId() {
@@ -72,7 +72,7 @@ public class UserDto {
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
-        UserDto userDTO = (UserDto) o;
+        UserDTO userDTO = (UserDTO) o;
         return Objects.equals(getId(), userDTO.getId()) && Objects.equals(getName(), userDTO.getName()) && Objects.equals(getEmail(), userDTO.getEmail()) && Objects.equals(getPassword(), userDTO.getPassword()) && Objects.equals(getCreatedAt(), userDTO.getCreatedAt()) && Objects.equals(getUpdateAt(), userDTO.getUpdateAt());
     }
 

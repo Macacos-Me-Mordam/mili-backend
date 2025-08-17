@@ -1,6 +1,6 @@
-package br.com.mili.backend.services;
+package br.com.mili.backend.service;
 
-import br.com.mili.backend.data.dto.EvidenceWindowDto;
+import br.com.mili.backend.data.dto.EvidenceWindowDTO;
 import br.com.mili.backend.model.Settings;
 import br.com.mili.backend.repository.SettingsRepository;
 import jakarta.transaction.Transactional;
@@ -24,21 +24,21 @@ public class SettingsService {
         this.repository = repository;
     }
 
-    public EvidenceWindowDto getEvidenceWindow() {
+    public EvidenceWindowDTO getEvidenceWindow() {
         var opt = repository.findById(KEY_WINDOW);
         long seconds = opt.map(s -> parseLongOrDefault(s.getValue(), defaultWindowSeconds))
                 .orElse(defaultWindowSeconds);
-        return new EvidenceWindowDto(seconds);
+        return new EvidenceWindowDTO(seconds);
     }
 
     @Transactional
-    public EvidenceWindowDto updateEvidenceWindow(long seconds) {
+    public EvidenceWindowDTO updateEvidenceWindow(long seconds) {
         logger.info("Updating window evidence for: {}", seconds, " seconds!");
         if (seconds <= 0) throw new IllegalArgumentException("windowSeconds deve ser > 0");
         var setting = repository.findById(KEY_WINDOW).orElse(new Settings(KEY_WINDOW, String.valueOf(seconds)));
         setting.setValue(String.valueOf(seconds));
         repository.save(setting);
-        return new EvidenceWindowDto(seconds);
+        return new EvidenceWindowDTO(seconds);
     }
 
     private long parseLongOrDefault(String val, long def) {
