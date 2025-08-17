@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class SettingsService {
 
-    private Logger logger = LoggerFactory.getLogger(UserService.class.getName());
+    private final Logger logger = LoggerFactory.getLogger(UserService.class.getName());
     private static final String KEY_WINDOW = "evidence.window.seconds";
 
     private SettingsRepository repository;

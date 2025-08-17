@@ -5,6 +5,8 @@ import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.model.Occurrence;
 import br.com.mili.backend.service.OccurrenceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,5 +46,19 @@ public class OccurenceController {
     public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadOccurrenceProof(@PathVariable("id") UUID id){
+        byte[] pdfBytes = service.generateOccurrenceProof(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "ocorrencia-" + id.toString() + ".pdf");
+        headers.setContentLength(pdfBytes.length);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

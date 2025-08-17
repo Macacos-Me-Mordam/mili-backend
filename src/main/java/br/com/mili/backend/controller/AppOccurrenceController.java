@@ -7,6 +7,8 @@ import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.model.AppOccurrence;
 import br.com.mili.backend.service.AppOccurrenceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,15 +24,13 @@ public class AppOccurrenceController {
 
     @PostMapping
     public OccurrenceResponseDTO createOccurrence(@RequestBody CreateAppOccurrenceDTO payload) {
-        var response = service.createOccurrence(payload);
-        return response;
+        return service.createOccurrence(payload);
     }
 
     @GetMapping("/processing")
     public List<AppOccurrence> getProcessingOccurrences() {
         return service.getProcessingOccurrences();
     }
-
 
     @GetMapping("/resolved")
     public List<AppOccurrence> getResolvedOccurrences() {
@@ -42,7 +42,7 @@ public class AppOccurrenceController {
         return service.getClosedOccurrences();
     }
 
-    @PutMapping("/status")
+    @PutMapping
     public ResponseEntity<Void> updateOccurrenceStatus(@RequestBody UpdateOccurrenceStatusDTO payload) {
         var statusEnum = OccurrenceStatusEnum.valueOf(payload.status());
         service.updateOccurrenceStatus(payload.id(), statusEnum);
@@ -53,5 +53,19 @@ public class AppOccurrenceController {
     public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadOccurrenceProof(@PathVariable("id") UUID id){
+        byte[] pdfBytes = service.generateOccurrenceProof(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "ocorrencia-" + id.toString() + ".pdf");
+        headers.setContentLength(pdfBytes.length);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

@@ -42,7 +42,7 @@ public class EvidenceController {
                 payload.cameraId(), cutoff);
 
         var occurrence = occurrenceIdOpt
-                .map(id -> new OccurrenceResponseDTO(id))
+                .map(OccurrenceResponseDTO::new)
                 .orElseGet(() -> service.createOccurrence(new CreateOccurrenceDTO(payload.description())));
 
         var ev = new Evidence();
