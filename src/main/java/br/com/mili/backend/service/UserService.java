@@ -1,6 +1,6 @@
-package br.com.mili.backend.services;
+package br.com.mili.backend.service;
 
-import br.com.mili.backend.data.dto.UserDto;
+import br.com.mili.backend.data.dto.UserDTO;
 import static br.com.mili.backend.mapper.ObjectMapper.parseObject;
 import static br.com.mili.backend.mapper.ObjectMapper.parseListObject;
 
@@ -29,20 +29,20 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UserDto create(UserDto user) {
+    public UserDTO create(UserDTO user) {
         logger.info("Creating one user!");
         var entity = parseObject(user, User.class);
         entity.setPassword(passwordEncoder.encode(user.getPassword()));
-        return parseObject(repository.save(entity), UserDto.class);
+        return parseObject(repository.save(entity), UserDTO.class);
     }
 
-    public UserDto getMe(String email) {
+    public UserDTO getMe(String email) {
         logger.info("Finding user by email: {}", email);
         var entity = repository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException(("User not found with email: " +  email)));
-        return parseObject(entity, UserDto.class);
+        return parseObject(entity, UserDTO.class);
     }
 
-    public List<UserDto> findAll() {
-        return parseListObject(repository.findAll(), UserDto.class);
+    public List<UserDTO> findAll() {
+        return parseListObject(repository.findAll(), UserDTO.class);
     }
 }

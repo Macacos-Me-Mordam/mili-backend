@@ -1,7 +1,7 @@
-package br.com.mili.backend.controllers;
+package br.com.mili.backend.controller;
 
-import br.com.mili.backend.data.dto.UserDto;
-import br.com.mili.backend.services.UserService;
+import br.com.mili.backend.data.dto.UserDTO;
+import br.com.mili.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -17,17 +17,17 @@ public class UserController {
     private UserService service;
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public UserDto create(@RequestBody UserDto user) {
+    public UserDTO create(@RequestBody UserDTO user) {
         return service.create(user);
     }
 
     @GetMapping("/profile")
-    public UserDto getMe(Authentication authentication) {
+    public UserDTO getMe(Authentication authentication) {
         return service.getMe(authentication.getName());
     }
 
     @GetMapping
-    public List<UserDto> findAll() {
+    public List<UserDTO> findAll() {
         return service.findAll();
     }
 }

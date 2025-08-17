@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.UUID;
 
-public record CreateEvidenceDto(
+public record CreateEvidenceDTO(
         @NotBlank String description,
         @JsonProperty("file_path") @NotBlank String filePath,
         @JsonProperty("camera_id") @NotNull UUID cameraId

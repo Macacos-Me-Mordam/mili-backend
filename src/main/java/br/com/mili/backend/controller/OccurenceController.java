@@ -1,15 +1,16 @@
-package br.com.mili.backend.controllers;
+package br.com.mili.backend.controller;
 
-import br.com.mili.backend.data.dto.UpdateOccurrenceStatusDto;
+import br.com.mili.backend.data.dto.UpdateOccurrenceStatusDTO;
 import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.model.Occurrence;
-import br.com.mili.backend.services.OccurrenceService;
+import br.com.mili.backend.service.OccurrenceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -35,7 +36,7 @@ public class OccurenceController {
     }
 
     @PutMapping
-    public ResponseEntity<Void> updateOccurrenceStatus(@RequestBody UpdateOccurrenceStatusDto payload) {
+    public ResponseEntity<Void> updateOccurrenceStatus(@RequestBody UpdateOccurrenceStatusDTO payload) {
         var statusEnum = OccurrenceStatusEnum.valueOf(payload.status());
         service.updateOccurrenceStatus(payload.id(), statusEnum);
         return ResponseEntity.ok().build();
@@ -45,5 +46,19 @@ public class OccurenceController {
     public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadOccurrenceProof(@PathVariable("id") UUID id){
+        byte[] pdfBytes = service.generateOccurrenceProof(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "ocorrencia-" + id.toString() + ".pdf");
+        headers.setContentLength(pdfBytes.length);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

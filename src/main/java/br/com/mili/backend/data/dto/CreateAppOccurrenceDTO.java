@@ -4,7 +4,7 @@ import br.com.mili.backend.data.enums.FrequencyTypeEnum;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 
-public record CreateAppOccurrenceDto(
+public record CreateAppOccurrenceDTO(
         @NotBlank String description,
         @JsonProperty("photo_url") @NotBlank String photoUrl,
         @NotBlank String address,

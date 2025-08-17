@@ -1,12 +1,14 @@
-package br.com.mili.backend.controllers;
+package br.com.mili.backend.controller;
 
-import br.com.mili.backend.data.dto.CreateAppOccurrenceDto;
-import br.com.mili.backend.data.dto.OccurrenceResponseDto;
-import br.com.mili.backend.data.dto.UpdateOccurrenceStatusDto;
+import br.com.mili.backend.data.dto.CreateAppOccurrenceDTO;
+import br.com.mili.backend.data.dto.OccurrenceResponseDTO;
+import br.com.mili.backend.data.dto.UpdateOccurrenceStatusDTO;
 import br.com.mili.backend.data.enums.OccurrenceStatusEnum;
 import br.com.mili.backend.model.AppOccurrence;
-import br.com.mili.backend.services.AppOccurrenceService;
+import br.com.mili.backend.service.AppOccurrenceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,16 +23,14 @@ public class AppOccurrenceController {
     private AppOccurrenceService service;
 
     @PostMapping
-    public OccurrenceResponseDto createOccurrence(@RequestBody CreateAppOccurrenceDto payload) {
-        var response = service.createOccurrence(payload);
-        return response;
+    public OccurrenceResponseDTO createOccurrence(@RequestBody CreateAppOccurrenceDTO payload) {
+        return service.createOccurrence(payload);
     }
 
     @GetMapping("/processing")
     public List<AppOccurrence> getProcessingOccurrences() {
         return service.getProcessingOccurrences();
     }
-
 
     @GetMapping("/resolved")
     public List<AppOccurrence> getResolvedOccurrences() {
@@ -42,8 +42,8 @@ public class AppOccurrenceController {
         return service.getClosedOccurrences();
     }
 
-    @PutMapping("/status")
-    public ResponseEntity<Void> updateOccurrenceStatus(@RequestBody UpdateOccurrenceStatusDto payload) {
+    @PutMapping
+    public ResponseEntity<Void> updateOccurrenceStatus(@RequestBody UpdateOccurrenceStatusDTO payload) {
         var statusEnum = OccurrenceStatusEnum.valueOf(payload.status());
         service.updateOccurrenceStatus(payload.id(), statusEnum);
         return ResponseEntity.ok().build();
@@ -53,5 +53,19 @@ public class AppOccurrenceController {
     public ResponseEntity<?> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadOccurrenceProof(@PathVariable("id") UUID id){
+        byte[] pdfBytes = service.generateOccurrenceProof(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "ocorrencia-" + id.toString() + ".pdf");
+        headers.setContentLength(pdfBytes.length);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

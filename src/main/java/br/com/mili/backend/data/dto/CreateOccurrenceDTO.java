@@ -1,6 +1,6 @@
 package br.com.mili.backend.data.dto;
 
-public record CreateOccurrenceDto(
+public record CreateOccurrenceDTO(
         String description
 ) {
 }
