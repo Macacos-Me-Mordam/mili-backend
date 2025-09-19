@@ -1,13 +1,12 @@
 package br.com.mili.backend.config;
 
-import java.util.Arrays;
-import java.util.List;
-
+import br.com.mili.backend.security.jwt.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer; // IMPORTANTE: ADICIONE ESTE IMPORT
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,7 +19,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import br.com.mili.backend.security.jwt.JwtAuthFilter;
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -39,41 +39,47 @@ public class SecurityConfig {
         return cfg.getAuthenticationManager();
     }
 
-@Bean
-public SecurityFilterChain filterChain(HttpSecurity http,
-        JwtAuthFilter jwtFilter,
-        DaoAuthenticationProvider provider) throws Exception {
-    http
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           JwtAuthFilter jwtFilter,
+                                           DaoAuthenticationProvider provider) throws Exception {
+
+        http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {}) // usa o bean corsConfigurationSource()
+            // *** CORREÇÃO 1: Ativa o CORS usando o seu bean de configuração ***
+            .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera preflight
-
-                    .requestMatchers("/auth/login", "/auth/logout", "/health").permitAll() 
-
-                    .anyRequest().authenticated()) 
+                // O .cors() acima já libera as requisições OPTIONS do pre-flight
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Suas rotas públicas
+                .requestMatchers("/auth/login", "/auth/logout", "/health").permitAll()
+                // Todas as outras rotas exigem autenticação
+                .anyRequest().authenticated()
+            )
             .authenticationProvider(provider)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-    return http.build();
-}
-@Bean
-public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration cfg = new CorsConfiguration();
+        return http.build();
+    }
 
-    cfg.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3001",
-            "http://localhost:3000"
-    ));
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        var cfg = new CorsConfiguration();
 
-    cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    cfg.setAllowedHeaders(List.of("*"));
-    
-    cfg.setAllowCredentials(true);
+        // *** CORREÇÃO 2: Adicione seus domínios de produção aqui ***
+        cfg.setAllowedOrigins(Arrays.asList(
+            "https://rhk-io.online",
+            "https://www.rhk-io.online",
+            "http://localhost:3000",
+            "http://localhost:3001"
+        ));
+        cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", cfg);
-    return source;
-}
+        var source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", cfg);
+        return source;
+    }
 }

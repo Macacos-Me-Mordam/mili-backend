@@ -56,6 +56,7 @@ public class AuthController {
                 .secure(cookieSecure)
                 .domain(cookieDomain)
                 .path("/")
+                .domain("rhk-io.online")
                 .sameSite(cookieSameSite)
                 .maxAge(expiration)
                 .build();
